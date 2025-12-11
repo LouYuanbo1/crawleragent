@@ -1,4 +1,4 @@
-package crawler
+package service
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/collector"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler/param"
+	"github.com/LouYuanbo1/crawleragent/internal/service/combine/param"
+
 	"github.com/chromedp/chromedp"
 	"github.com/gocolly/colly/v2"
 )
@@ -23,8 +24,8 @@ type CombineService[C entity.Crawlable[D], D model.Document] interface {
 	TypedEsClient() es.TypedEsClient[D]
 	Embedder() embedding.Embedder
 	Crawl(ctx context.Context, url string) error
-	DefaultStrategy(params *param.CombineDefaultStrategy[C, D]) error
-	CustomStrategy(params *param.CombineCustomStrategy[C, D]) error
+	DefaultStrategy(params *param.DefaultStrategy[C, D]) error
+	CustomStrategy(params *param.CustomStrategy[C, D]) error
 	OnResponse(handler func(r *colly.Response) error)
 	OnHTML(selector string, handler func(r *colly.HTMLElement) error)
 	OnScraped(toCrawlable func(body []byte) ([]C, error))
@@ -84,7 +85,7 @@ func (cs *combineService[C, D]) Crawl(ctx context.Context, url string) error {
 	return nil
 }
 
-func (cs *combineService[C, D]) DefaultStrategy(params *param.CombineDefaultStrategy[C, D]) error {
+func (cs *combineService[C, D]) DefaultStrategy(params *param.DefaultStrategy[C, D]) error {
 	if params.Selector == "" || params.HTMLFunc == nil {
 		return fmt.Errorf("selector or HTMLFunc or ToCrawlable is empty")
 	}
@@ -124,7 +125,7 @@ func (cs *combineService[C, D]) defaultCrawlingFromChrome(response *colly.Respon
 	return nil
 }
 
-func (cs *combineService[C, D]) CustomStrategy(params *param.CombineCustomStrategy[C, D]) error {
+func (cs *combineService[C, D]) CustomStrategy(params *param.CustomStrategy[C, D]) error {
 	if params.Selector == "" || params.HTMLFunc == nil {
 		return fmt.Errorf("selector or HTMLFunc is empty")
 	}

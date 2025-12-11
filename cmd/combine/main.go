@@ -13,8 +13,10 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/collector"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler/param"
+
+	service "github.com/LouYuanbo1/crawleragent/internal/service/combine"
+	"github.com/LouYuanbo1/crawleragent/internal/service/combine/param"
+
 	"github.com/gocolly/colly/v2"
 )
 
@@ -74,9 +76,9 @@ func main() {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
 
-	service := crawler.InitCombineService(scrollCrawler, collector, esJobClient, embedder, 10, 1)
+	service := service.InitCombineService(scrollCrawler, collector, esJobClient, embedder, 10, 1)
 	/*
-		params := &param.CombineCrawlerDefaultStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+		params := &param.DefaultStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
 			EnableJavascript: false,
 			Selector:         "head title",
 			HTMLFunc: func(e *colly.HTMLElement) error {
@@ -86,7 +88,7 @@ func main() {
 		}
 		service.DefaultStrategy(params)
 	*/
-	params := &param.CombineCustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+	params := &param.CustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
 		EnableJavascript: false,
 		Selector:         "head title",
 		HTMLFunc: func(e *colly.HTMLElement) error {

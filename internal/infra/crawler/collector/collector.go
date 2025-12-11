@@ -1,7 +1,7 @@
 package collector
 
 import (
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler/option"
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/collector/option"
 	"github.com/gocolly/colly/v2"
 )
 
