@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/collector"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
+
 	"github.com/LouYuanbo1/crawleragent/internal/service/combine/param"
 
 	"github.com/chromedp/chromedp"
@@ -26,6 +28,7 @@ type CombineService[C entity.Crawlable[D], D model.Document] interface {
 	Crawl(ctx context.Context, url string) error
 	DefaultStrategy(params *param.DefaultStrategy[C, D]) error
 	CustomStrategy(params *param.CustomStrategy[C, D]) error
+	RecursiveCrawling(hrefSelector string)
 	OnResponse(handler func(r *colly.Response) error)
 	OnHTML(selector string, handler func(r *colly.HTMLElement) error)
 	OnScraped(toCrawlable func(body []byte) ([]C, error))
@@ -78,7 +81,7 @@ func (cs *combineService[C, D]) Crawl(ctx context.Context, url string) error {
 	log.Printf("Crawl, url: %s", url)
 	err := cs.collyCrawler.Visit(url)
 	if err != nil {
-		return fmt.Errorf("Visit error, url: %s, error: %w", url, err)
+		return fmt.Errorf("visit error, url: %s, error: %w", url, err)
 	}
 	cs.collyCrawler.Wait()
 	log.Printf("Crawl, url: %s, wait done", url)
@@ -100,11 +103,26 @@ func (cs *combineService[C, D]) DefaultStrategy(params *param.DefaultStrategy[C,
 		})
 	}
 	cs.OnHTML(params.Selector, params.HTMLFunc)
-	if params.ToCrawlable != nil {
-		cs.OnScraped(params.ToCrawlable)
+	if params.OptToCrawlable != nil {
+		cs.OnScraped(params.OptToCrawlable)
 	}
 	log.Printf("DefaultStrategy, selector: %s", params.Selector)
 	return nil
+}
+
+func (cs *combineService[C, D]) RecursiveCrawling(hrefSelector string) {
+	cs.collyCrawler.OnHTML(hrefSelector, func(el *colly.HTMLElement) {
+		log.Println("visiting: ", el.Attr("href"))
+
+		err := el.Request.Visit(el.Attr("href"))
+		if err != nil {
+			// Ignore already visited error, this appears too often
+			var alreadyVisited *colly.AlreadyVisitedError
+			if !errors.As(err, &alreadyVisited) {
+				log.Printf("already visited: %s", err.Error())
+			}
+		}
+	})
 }
 
 func (cs *combineService[C, D]) defaultCrawlingFromChrome(response *colly.Response) error {
@@ -140,8 +158,8 @@ func (cs *combineService[C, D]) CustomStrategy(params *param.CustomStrategy[C, D
 		})
 	}
 	cs.OnHTML(params.Selector, params.HTMLFunc)
-	if params.ToCrawlable != nil {
-		cs.OnScraped(params.ToCrawlable)
+	if params.OptToCrawlable != nil {
+		cs.OnScraped(params.OptToCrawlable)
 	}
 	log.Printf("CustomStrategy, selector: %s", params.Selector)
 	return nil

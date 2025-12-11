@@ -37,9 +37,11 @@ func main() {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
 	service := service.InitCollyService(collyCollector, esJobClient, embedder, 8, 1)
-	service.CollyCrawler().OnHTML("head title", func(e *colly.HTMLElement) {
-		fmt.Println(e.Text)
+	service.CollyCrawler().OnHTML("body", func(e *colly.HTMLElement) {
+		fmt.Println(e.Text[:200])
 	})
+	service.RecursiveCrawling("a[href*=https://www.bilibili.com/video/]")
+
 	if err := service.Visit("https://www.bilibili.com"); err != nil {
 		log.Fatalf("访问URL失败: %v", err)
 	}

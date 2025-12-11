@@ -21,6 +21,7 @@ func InitCollyCrawler(config *config.Config) CollyCrawler {
 		colly.MaxDepth(config.Colly.MaxDepth),
 		colly.Async(config.Colly.Async),
 		colly.UserAgent(config.Colly.UserAgent),
+		colly.AllowedDomains(config.Colly.AllowedDomains...),
 	)
 	if config.Colly.IgnoreRobotsTxt {
 		opts = append(opts, colly.IgnoreRobotsTxt())
@@ -37,7 +38,7 @@ func InitCollyCrawler(config *config.Config) CollyCrawler {
 		}
 		c.SetCookieJar(jar)
 	}
-	log.Printf("InitCollyCrawler, maxDepth: %d, async: %v, userAgent: %s", config.Colly.MaxDepth, config.Colly.Async, config.Colly.UserAgent)
+	log.Printf("InitCollyCrawler, maxDepth: %d, async: %v, delay: %d, randomDelay: %d", config.Colly.MaxDepth, config.Colly.Async, config.Colly.Delay, config.Colly.RandomDelay)
 	return &collyCrawler{
 		colly: c,
 	}

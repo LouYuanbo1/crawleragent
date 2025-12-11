@@ -6,10 +6,10 @@
     },
     "colly": {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0",
-        "allowed_domains": [
-            "www.bilibili.com"
-        ],
-        "max_depth": 1
+        "delay": 2,
+        "random_delay": 2,
+        "max_depth": 2,
+        "async": true
     },
     "embedder": {
         "host": "http://localhost",

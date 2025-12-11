@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -20,6 +21,7 @@ type CollyService[C entity.Crawlable[D], D model.Document] interface {
 	Embedder() embedding.Embedder
 	Visit(url string) error
 	Wait()
+	RecursiveCrawling(hrefSelector string)
 	HandleResponse(ctx context.Context, toCrawlable func(body []byte) ([]C, error))
 	HandleHTML(ctx context.Context, selector string, toCrawlable func(r *colly.HTMLElement) ([]C, error))
 }
@@ -66,6 +68,21 @@ func (cs *collyService[C, D]) Visit(url string) error {
 
 func (cs *collyService[C, D]) Wait() {
 	cs.collyCrawler.Wait()
+}
+
+func (cs *collyService[C, D]) RecursiveCrawling(hrefSelector string) {
+	cs.collyCrawler.OnHTML(hrefSelector, func(el *colly.HTMLElement) {
+		log.Println("visiting: ", el.Attr("href"))
+
+		err := el.Request.Visit(el.Attr("href"))
+		if err != nil {
+			// Ignore already visited error, this appears too often
+			var alreadyVisited *colly.AlreadyVisitedError
+			if !errors.As(err, &alreadyVisited) {
+				log.Printf("already visited: %s", err.Error())
+			}
+		}
+	})
 }
 
 func (cs *collyService[C, D]) HandleResponse(ctx context.Context, toCrawlable func(body []byte) ([]C, error)) {
