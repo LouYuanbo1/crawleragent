@@ -1,0 +1,18 @@
+{
+    "elasticsearch": {
+        "username": "your_elasticsearch_username",
+        "password": "your_elasticsearch_password",
+        "address": "http://localhost:9200"
+    },
+    "embedder": {
+        "host": "http://localhost",
+        "port": 11434,
+        "model": "nomic-embed-text",
+        "batch_size": 5
+    },
+    "llm": {
+        "host": "http://localhost",
+        "port": 11434,
+        "model": "qwen3:1.7b"
+    }
+}

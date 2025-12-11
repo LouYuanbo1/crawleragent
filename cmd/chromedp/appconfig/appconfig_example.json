@@ -1,0 +1,23 @@
+{
+    "elasticsearch": {
+        "username": "your_elasticsearch_username",
+        "password": "your_elasticsearch_password",
+        "address": "http://localhost:9200"
+    },
+    "chromedp": {
+        "life_time": 300,
+        "user_data_dir": "path_where_you_want_to_save_chrome_data",
+        "headless": false,
+        "disable_blink_features": "AutomationControlled",
+        "incognito": false,
+        "disable_dev_shm_usage": true,
+        "no_sandbox": true,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0"
+    },
+    "embedder": {
+        "host": "http://localhost",
+        "port": 11434,
+        "model": "nomic-embed-text",
+        "batch_size": 5
+    }
+}
