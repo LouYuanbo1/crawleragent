@@ -74,11 +74,19 @@ func main() {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
 
-	//初始化爬虫服务
-	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
-	//爬虫服务负责协调滚动爬虫的运行,将爬取到的数据转换为文档,并使用Embedding模型生成向量表示,最后将文档和向量索引到Elasticsearch中
 	service := crawler.InitCombineService(scrollCrawler, collector, esJobClient, embedder, 10, 1)
-	params := &param.CombineCrawlerDefaultStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+	/*
+		params := &param.CombineCrawlerDefaultStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+			EnableJavascript: false,
+			Selector:         "head title",
+			HTMLFunc: func(e *colly.HTMLElement) error {
+				fmt.Println(e.Text)
+				return nil
+			},
+		}
+		service.DefaultStrategy(params)
+	*/
+	params := &param.CombineCrawlerCustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
 		EnableJavascript: false,
 		Selector:         "head title",
 		HTMLFunc: func(e *colly.HTMLElement) error {
@@ -86,6 +94,7 @@ func main() {
 			return nil
 		},
 	}
-	service.DefaultStrategy(params)
+	service.CustomStrategy(params)
+
 	service.Crawl(ctx, url)
 }
