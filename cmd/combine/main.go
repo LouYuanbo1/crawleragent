@@ -35,7 +35,7 @@ var appConfig []byte
 // urlPattern是Boss直聘的岗位数据api中的一部分,你可以通过f12寻找到它
 var (
 	//url = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=405&experience=102&query=golang"
-	url = "https://www.bilibili.com"
+	url = "https://www.cnblogs.com/"
 	//urlPattern = "joblist.json"
 )
 
@@ -77,26 +77,28 @@ func main() {
 	}
 
 	service := service.InitCombineService(scrollCrawler, collector, esJobClient, embedder, 10, 1)
+
+	params := &param.DefaultStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+		EnableJavascript: true,
+		Selector:         "p.post-item-summary",
+		HTMLFunc: func(e *colly.HTMLElement) error {
+			fmt.Println(e.Text)
+			return nil
+		},
+	}
+	service.DefaultStrategy(params)
+	service.RecursiveCrawling("a[href]")
+
 	/*
-		params := &param.DefaultStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
-			EnableJavascript: false,
+		params := &param.CustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+			EnableJavascript: true,
 			Selector:         "head title",
 			HTMLFunc: func(e *colly.HTMLElement) error {
 				fmt.Println(e.Text)
 				return nil
 			},
 		}
-		service.DefaultStrategy(params)
+		service.CustomStrategy(params)
 	*/
-	params := &param.CustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
-		EnableJavascript: false,
-		Selector:         "head title",
-		HTMLFunc: func(e *colly.HTMLElement) error {
-			fmt.Println(e.Text)
-			return nil
-		},
-	}
-	service.CustomStrategy(params)
-
 	service.Crawl(ctx, url)
 }

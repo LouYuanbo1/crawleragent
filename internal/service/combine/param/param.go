@@ -11,7 +11,7 @@ type DefaultStrategy[C entity.Crawlable[D], D model.Document] struct {
 	EnableJavascript bool
 	Selector         string
 	HTMLFunc         func(e *colly.HTMLElement) error
-	ToCrawlable      func(body []byte) ([]C, error)
+	OptToCrawlable   func(body []byte) ([]C, error)
 }
 
 type CustomStrategy[C entity.Crawlable[D], D model.Document] struct {
@@ -19,5 +19,5 @@ type CustomStrategy[C entity.Crawlable[D], D model.Document] struct {
 	ActionsFunc      []chromedp.Action
 	Selector         string
 	HTMLFunc         func(e *colly.HTMLElement) error
-	ToCrawlable      func(body []byte) ([]C, error)
+	OptToCrawlable   func(body []byte) ([]C, error)
 }
