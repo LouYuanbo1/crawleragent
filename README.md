@@ -39,7 +39,9 @@ crawleragent/
 │   │   └── persistence/ # 持久化实现
 │   └── service/         # 业务服务
 │       ├── agent/       # 智能体服务
-│       └── crawler/     # 爬虫服务
+|       ├── chromedp/    # Chromedp爬虫服务
+|       ├── colly/       # Colly爬虫服务
+│       └── combine/     # 混合爬虫服务
 ├── go.mod               # Go模块定义
 └── go.sum               # 依赖校验和
 ```
