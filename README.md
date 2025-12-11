@@ -89,12 +89,6 @@ crawleragent/
     go mod download
     ```
     *（这一步会读取项目中的 `go.mod` 和 `go.sum`，将所有依赖下载到本地模块缓存。后续的 `go build` 或 `go run` 命令也会自动触发此操作。）*
-
-3.  **运行**
-    ```bash
-    cd cmd/chromedp #进入chromedp目录
-    go run main.go
-    ```
     
 ### 配置文件
 在每个命令行入口目录下都有一个appconfig文件夹，包含appconfig.json配置文件。你可以根据需要修改配置：
@@ -138,6 +132,11 @@ go run main.go
 #### Chromedp爬虫
 ```bash
 cd cmd/chromedp
+go run main.go
+```
+#### 混合爬虫
+```bash
+cd cmd/combine
 go run main.go
 ```
 #### 运行智能体
