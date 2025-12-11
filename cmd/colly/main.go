@@ -10,7 +10,8 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/collector"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler"
+	service "github.com/LouYuanbo1/crawleragent/internal/service/colly"
+
 	"github.com/gocolly/colly/v2"
 )
 
@@ -35,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
-	service := crawler.InitCollyService(collyCollector, esJobClient, embedder, 8, 1)
+	service := service.InitCollyService(collyCollector, esJobClient, embedder, 8, 1)
 	service.CollyCrawler().OnHTML("head title", func(e *colly.HTMLElement) {
 		fmt.Println(e.Text)
 	})

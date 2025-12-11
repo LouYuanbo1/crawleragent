@@ -12,8 +12,9 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/chrome"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler/param"
+
+	service "github.com/LouYuanbo1/crawleragent/internal/service/chromedp"
+	"github.com/LouYuanbo1/crawleragent/internal/service/chromedp/param"
 )
 
 //使用go:embed嵌入appconfig.json文件
@@ -73,8 +74,8 @@ func main() {
 	//初始化爬虫服务
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
 	//爬虫服务负责协调滚动爬虫的运行,将爬取到的数据转换为文档,并使用Embedding模型生成向量表示,最后将文档和向量索引到Elasticsearch中
-	service := crawler.InitChromedpService(scrollCrawler, esJobClient, embedder, 5, 1)
-	scrollParams := &param.ChromeScroll{
+	service := service.InitChromedpService(scrollCrawler, esJobClient, embedder, 5, 1)
+	scrollParams := &param.Scroll{
 		Url: url,
 		//滚动爬虫监听的api
 		UrlPattern: urlPattern,

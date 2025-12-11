@@ -1,4 +1,4 @@
-package crawler
+package service
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/chrome"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/crawler/param"
+	"github.com/LouYuanbo1/crawleragent/internal/service/chromedp/param"
+
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
@@ -22,7 +23,7 @@ type ChromedpService[C entity.Crawlable[D], D model.Document] interface {
 	ChromedpCrawler() chrome.ChromedpCrawler
 	TypedEsClient() es.TypedEsClient[D]
 	Embedder() embedding.Embedder
-	ScrollCrawl(ctx context.Context, params *param.ChromeScroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
+	ScrollCrawl(ctx context.Context, params *param.Scroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
 }
 
 type chromedpService[C entity.Crawlable[D], D model.Document] struct {
@@ -63,7 +64,7 @@ func (cs *chromedpService[C, D]) Embedder() embedding.Embedder {
 
 // 可能有大模型计算瓶颈或者内存瓶颈，可能要优化
 
-func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.ChromeScroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error {
+func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.Scroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error {
 	log.Printf("开始滚动爬取: %s", params.Url)
 
 	// 设置监听器
