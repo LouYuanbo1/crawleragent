@@ -55,7 +55,7 @@ func (c *collyCrawler) Wait() {
 	c.colly.Wait()
 }
 
-func (c *collyCrawler) OnRequest(options option.CollyCrawler, callback func(r *colly.Request)) {
+func (c *collyCrawler) OnRequest(options option.CollyRequest, callback func(r *colly.Request)) {
 	c.colly.OnRequest(func(r *colly.Request) {
 		if options.UserAgent != "" {
 			r.Headers.Set("User-Agent", options.UserAgent)

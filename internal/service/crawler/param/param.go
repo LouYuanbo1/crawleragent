@@ -7,14 +7,14 @@ import (
 	"github.com/gocolly/colly/v2"
 )
 
-type CombineCrawlerDefaultStrategy[C entity.Crawlable[D], D model.Document] struct {
+type CombineDefaultStrategy[C entity.Crawlable[D], D model.Document] struct {
 	EnableJavascript bool
 	Selector         string
 	HTMLFunc         func(e *colly.HTMLElement) error
 	ToCrawlable      func(body []byte) ([]C, error)
 }
 
-type CombineCrawlerCustomStrategy[C entity.Crawlable[D], D model.Document] struct {
+type CombineCustomStrategy[C entity.Crawlable[D], D model.Document] struct {
 	EnableJavascript bool
 	ActionsFunc      []chromedp.Action
 	Selector         string
@@ -22,8 +22,8 @@ type CombineCrawlerCustomStrategy[C entity.Crawlable[D], D model.Document] struc
 	ToCrawlable      func(body []byte) ([]C, error)
 }
 
-// ScrollCrawler 滚动爬取选项,用于配置滚动爬取的行为
-type ScrollCrawler struct {
+// ChromeScroll 滚动爬取选项,用于配置滚动爬取的行为
+type ChromeScroll struct {
 	Url                  string `json:"url"`
 	UrlPattern           string `json:"url_pattern"`
 	Rounds               int    `json:"rounds"`

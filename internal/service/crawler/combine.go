@@ -23,8 +23,8 @@ type CombineService[C entity.Crawlable[D], D model.Document] interface {
 	TypedEsClient() es.TypedEsClient[D]
 	Embedder() embedding.Embedder
 	Crawl(ctx context.Context, url string) error
-	DefaultStrategy(params *param.CombineCrawlerDefaultStrategy[C, D]) error
-	CustomStrategy(params *param.CombineCrawlerCustomStrategy[C, D]) error
+	DefaultStrategy(params *param.CombineDefaultStrategy[C, D]) error
+	CustomStrategy(params *param.CombineCustomStrategy[C, D]) error
 	OnResponse(handler func(r *colly.Response) error)
 	OnHTML(selector string, handler func(r *colly.HTMLElement) error)
 	OnScraped(toCrawlable func(body []byte) ([]C, error))
@@ -84,7 +84,7 @@ func (cs *combineService[C, D]) Crawl(ctx context.Context, url string) error {
 	return nil
 }
 
-func (cs *combineService[C, D]) DefaultStrategy(params *param.CombineCrawlerDefaultStrategy[C, D]) error {
+func (cs *combineService[C, D]) DefaultStrategy(params *param.CombineDefaultStrategy[C, D]) error {
 	if params.Selector == "" || params.HTMLFunc == nil {
 		return fmt.Errorf("selector or HTMLFunc or ToCrawlable is empty")
 	}
@@ -124,7 +124,7 @@ func (cs *combineService[C, D]) defaultCrawlingFromChrome(response *colly.Respon
 	return nil
 }
 
-func (cs *combineService[C, D]) CustomStrategy(params *param.CombineCrawlerCustomStrategy[C, D]) error {
+func (cs *combineService[C, D]) CustomStrategy(params *param.CombineCustomStrategy[C, D]) error {
 	if params.Selector == "" || params.HTMLFunc == nil {
 		return fmt.Errorf("selector or HTMLFunc is empty")
 	}
