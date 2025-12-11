@@ -74,7 +74,7 @@ func main() {
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
 	//爬虫服务负责协调滚动爬虫的运行,将爬取到的数据转换为文档,并使用Embedding模型生成向量表示,最后将文档和向量索引到Elasticsearch中
 	service := crawler.InitChromedpService(scrollCrawler, esJobClient, embedder, 5, 1)
-	scrollParams := &param.ScrollCrawler{
+	scrollParams := &param.ChromeScroll{
 		Url: url,
 		//滚动爬虫监听的api
 		UrlPattern: urlPattern,

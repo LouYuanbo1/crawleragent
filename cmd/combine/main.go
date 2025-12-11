@@ -86,7 +86,7 @@ func main() {
 		}
 		service.DefaultStrategy(params)
 	*/
-	params := &param.CombineCrawlerCustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
+	params := &param.CombineCustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
 		EnableJavascript: false,
 		Selector:         "head title",
 		HTMLFunc: func(e *colly.HTMLElement) error {

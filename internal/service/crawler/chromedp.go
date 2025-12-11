@@ -22,7 +22,7 @@ type ChromedpService[C entity.Crawlable[D], D model.Document] interface {
 	ChromedpCrawler() chrome.ChromedpCrawler
 	TypedEsClient() es.TypedEsClient[D]
 	Embedder() embedding.Embedder
-	ScrollCrawl(ctx context.Context, params *param.ScrollCrawler, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
+	ScrollCrawl(ctx context.Context, params *param.ChromeScroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
 }
 
 type chromedpService[C entity.Crawlable[D], D model.Document] struct {
@@ -63,7 +63,7 @@ func (cs *chromedpService[C, D]) Embedder() embedding.Embedder {
 
 // 可能有大模型计算瓶颈或者内存瓶颈，可能要优化
 
-func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.ScrollCrawler, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error {
+func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.ChromeScroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error {
 	log.Printf("开始滚动爬取: %s", params.Url)
 
 	// 设置监听器

@@ -8,7 +8,7 @@ import (
 type CollyCrawler interface {
 	Visit(url string) error
 	Wait()
-	OnRequest(options option.CollyCrawler, callback func(r *colly.Request))
+	OnRequest(options option.CollyRequest, callback func(r *colly.Request))
 	OnResponse(callback func(r *colly.Response))
 	OnHTML(selector string, callback func(e *colly.HTMLElement))
 	OnScraped(callback func(r *colly.Response))
