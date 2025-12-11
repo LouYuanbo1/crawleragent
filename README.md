@@ -79,9 +79,17 @@ crawleragent/
 
 ## 快速开始
 ### 安装依赖
-```bash
-go mod download
-```
+1.  **克隆代码**
+    ```bash
+    git clone https://github.com/Louyuanbo1/crawleragent.git
+    cd crawleragent
+    ```
+2.  **下载所有依赖**
+    ```bash
+    go mod download
+    ```
+    *（这一步会读取项目中的 `go.mod` 和 `go.sum`，将所有依赖下载到本地模块缓存。后续的 `go build` 或 `go run` 命令也会自动触发此操作。）*
+    
 ### 配置文件
 在每个命令行入口目录下都有一个appconfig文件夹，包含appconfig.json配置文件。你可以根据需要修改配置：
 ```json
@@ -126,6 +134,11 @@ go run main.go
 cd cmd/chromedp
 go run main.go
 ```
+#### 混合爬虫
+```bash
+cd cmd/combine
+go run main.go
+```
 #### 运行智能体
 ```bash
 cd cmd/agent
@@ -167,6 +180,7 @@ service.Wait()
 ```
 
 ### 智能代理示例
+使用前记得先运行爬虫,将数据存储到Elasticsearch中,否则只能使用聊天模式
 ```bash
 cd cmd/agent
 go run main.go
