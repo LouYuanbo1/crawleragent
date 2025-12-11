@@ -24,6 +24,7 @@ type CombineService[C entity.Crawlable[D], D model.Document] interface {
 	Embedder() embedding.Embedder
 	Crawl(ctx context.Context, url string) error
 	DefaultStrategy(params *param.CombineCrawlerDefaultStrategy[C, D]) error
+	CustomStrategy(params *param.CombineCrawlerCustomStrategy[C, D]) error
 	OnResponse(handler func(r *colly.Response) error)
 	OnHTML(selector string, handler func(r *colly.HTMLElement) error)
 	OnScraped(toCrawlable func(body []byte) ([]C, error))
@@ -84,26 +85,28 @@ func (cs *combineService[C, D]) Crawl(ctx context.Context, url string) error {
 }
 
 func (cs *combineService[C, D]) DefaultStrategy(params *param.CombineCrawlerDefaultStrategy[C, D]) error {
-	if params.Selector == "" || params.HTMLFunc == nil /*|| params.ToCrawlable == nil*/ {
+	if params.Selector == "" || params.HTMLFunc == nil {
 		return fmt.Errorf("selector or HTMLFunc or ToCrawlable is empty")
 	}
 	if params.EnableJavascript {
 		cs.OnResponse(func(r *colly.Response) error {
-			err := cs.initCrawlingFromChrome(r)
+			err := cs.defaultCrawlingFromChrome(r)
 			if err != nil {
-				log.Printf("initCrawlingFromChrome error, url: %s, error: %s", r.Request.URL, err)
+				log.Printf("defaultCrawlingFromChrome error, url: %s, error: %s", r.Request.URL, err)
 				return err
 			}
 			return nil
 		})
 	}
 	cs.OnHTML(params.Selector, params.HTMLFunc)
-	//cs.OnScraped(option.ToCrawlable)
+	if params.ToCrawlable != nil {
+		cs.OnScraped(params.ToCrawlable)
+	}
 	log.Printf("DefaultStrategy, selector: %s", params.Selector)
 	return nil
 }
 
-func (cs *combineService[C, D]) initCrawlingFromChrome(response *colly.Response) error {
+func (cs *combineService[C, D]) defaultCrawlingFromChrome(response *colly.Response) error {
 	pageCtx := cs.chromedpCrawler.PageContext()
 	var res string
 
@@ -111,6 +114,44 @@ func (cs *combineService[C, D]) initCrawlingFromChrome(response *colly.Response)
 		chromedp.Navigate(response.Request.URL.String()),
 		chromedp.WaitReady("body", chromedp.ByQuery),
 		chromedp.InnerHTML("html", &res),
+	)
+	if err != nil {
+		return fmt.Errorf("chromedp execution: %w", err)
+	}
+
+	response.Body = []byte(res)
+
+	return nil
+}
+
+func (cs *combineService[C, D]) CustomStrategy(params *param.CombineCrawlerCustomStrategy[C, D]) error {
+	if params.Selector == "" || params.HTMLFunc == nil {
+		return fmt.Errorf("selector or HTMLFunc is empty")
+	}
+	if params.EnableJavascript {
+		cs.OnResponse(func(r *colly.Response) error {
+			err := cs.customCrawlingFromChrome(r, params.ActionsFunc)
+			if err != nil {
+				log.Printf("customCrawlingFromChrome error, url: %s, error: %s", r.Request.URL, err)
+				return err
+			}
+			return nil
+		})
+	}
+	cs.OnHTML(params.Selector, params.HTMLFunc)
+	if params.ToCrawlable != nil {
+		cs.OnScraped(params.ToCrawlable)
+	}
+	log.Printf("CustomStrategy, selector: %s", params.Selector)
+	return nil
+}
+
+func (cs *combineService[C, D]) customCrawlingFromChrome(response *colly.Response, actionsFunc []chromedp.Action) error {
+	pageCtx := cs.chromedpCrawler.PageContext()
+	var res string
+
+	err := chromedp.Run(pageCtx,
+		actionsFunc...,
 	)
 	if err != nil {
 		return fmt.Errorf("chromedp execution: %w", err)
