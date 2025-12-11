@@ -39,7 +39,7 @@ func main() {
 	service.CollyCrawler().OnHTML("head title", func(e *colly.HTMLElement) {
 		fmt.Println(e.Text)
 	})
-	if err := service.Visit("www.bilibili.com"); err != nil {
+	if err := service.Visit("https://www.bilibili.com"); err != nil {
 		log.Fatalf("访问URL失败: %v", err)
 	}
 
