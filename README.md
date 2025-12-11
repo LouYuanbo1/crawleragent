@@ -22,7 +22,7 @@ CrawlerAgent是一个爬虫与AI智能体结合的工具，它能够：
 ## 项目结构
 ```plaintext
 crawleragent/
-├── cmd/                  # 命令行入口
+├── cmd/                 # 命令行入口
 │   ├── agent/           # AI智能体入口
 │   ├── chromedp/        # Chromedp爬虫入口
 │   ├── colly/           # Colly爬虫入口
