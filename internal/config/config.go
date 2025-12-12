@@ -25,6 +25,7 @@ type Config struct {
 		UserAgent        string             `json:"user_agent"`
 		IgnoreRobotsTxt  bool               `json:"ignore_robots_txt"`
 		Async            bool               `json:"async"`
+		Parallelism      int                `json:"parallelism"`
 		Delay            int                `json:"delay"`
 		RandomDelay      int                `json:"random_delay"`
 		EnableCookieJar  bool               `json:"enable_cookie_jar"`
