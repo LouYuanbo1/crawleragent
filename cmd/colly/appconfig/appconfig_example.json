@@ -9,7 +9,8 @@
         "delay": 2,
         "random_delay": 2,
         "max_depth": 2,
-        "async": true
+        "async": true,
+        "parallelism": 1
     },
     "embedder": {
         "host": "http://localhost",

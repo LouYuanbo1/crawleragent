@@ -28,6 +28,7 @@ func InitCollyCrawler(config *config.Config) CollyCrawler {
 	}
 	c := colly.NewCollector(opts...)
 	c.Limit(&colly.LimitRule{
+		Parallelism: config.Colly.Parallelism,
 		Delay:       time.Duration(config.Colly.Delay) * time.Second,
 		RandomDelay: time.Duration(config.Colly.RandomDelay) * time.Second,
 	})
@@ -38,7 +39,7 @@ func InitCollyCrawler(config *config.Config) CollyCrawler {
 		}
 		c.SetCookieJar(jar)
 	}
-	log.Printf("InitCollyCrawler, maxDepth: %d, async: %v, delay: %d, randomDelay: %d", config.Colly.MaxDepth, config.Colly.Async, config.Colly.Delay, config.Colly.RandomDelay)
+	log.Printf("InitCollyCrawler, maxDepth: %d, async: %v, parallelism: %d, delay: %d, randomDelay: %d", config.Colly.MaxDepth, config.Colly.Async, config.Colly.Parallelism, config.Colly.Delay, config.Colly.RandomDelay)
 	return &collyCrawler{
 		colly: c,
 	}

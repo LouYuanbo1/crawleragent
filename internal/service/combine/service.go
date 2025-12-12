@@ -112,14 +112,14 @@ func (cs *combineService[C, D]) DefaultStrategy(params *param.DefaultStrategy[C,
 
 func (cs *combineService[C, D]) RecursiveCrawling(hrefSelector string) {
 	cs.collyCrawler.OnHTML(hrefSelector, func(el *colly.HTMLElement) {
-		log.Println("visiting: ", el.Attr("href"))
+		//log.Println("visiting: ", el.Attr("href"))
 
 		err := el.Request.Visit(el.Attr("href"))
 		if err != nil {
 			// Ignore already visited error, this appears too often
 			var alreadyVisited *colly.AlreadyVisitedError
 			if !errors.As(err, &alreadyVisited) {
-				log.Printf("already visited: %s", err.Error())
+				//log.Printf("already visited: %s", err.Error())
 			}
 		}
 	})
