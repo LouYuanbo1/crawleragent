@@ -147,6 +147,7 @@ func main() {
 	for {
 		//读取用户输入
 		fmt.Scanln(&query)
+		fmt.Printf("\n")
 
 		switch query {
 		case "":

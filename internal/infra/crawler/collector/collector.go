@@ -13,4 +13,5 @@ type CollyCrawler interface {
 	OnHTML(selector string, callback func(e *colly.HTMLElement))
 	OnScraped(callback func(r *colly.Response))
 	OnError(callback func(r *colly.Response, err error))
+	HasVisited(url string) (bool, error)
 }

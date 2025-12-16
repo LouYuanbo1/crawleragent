@@ -60,6 +60,7 @@ func Retriever[D model.Document]() *compose.Lambda {
 				return err
 			}
 			embedding := embeddings[0]
+			//这里搜索不要设置太多,否则会超出模型上下文导致上下文清空
 			K := 5
 			numCandidates := 100
 			searchResp, err := s.TypedEsClient.Search().Index(s.IndexName).
@@ -76,14 +77,17 @@ func Retriever[D model.Document]() *compose.Lambda {
 			if err != nil {
 				return err
 			}
+
 			var Builder strings.Builder
 			Builder.WriteString("参考文档(JSON格式):\n\n")
 			for i, hit := range searchResp.Hits.Hits {
+				//fmt.Printf("文档%d原始JSON: %s\n", i+1, string(hit.Source_))
 				Builder.WriteString(fmt.Sprintf("文档%d:\n", i+1))
 				Builder.WriteString(string(hit.Source_))
 				Builder.WriteString("\n\n")
 			}
 			state["referenceDocs"] = Builder.String()
+			//fmt.Print(state)
 			return nil
 		})
 		if err != nil {

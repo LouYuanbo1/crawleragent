@@ -21,7 +21,7 @@ type chromedpCrawler struct {
 	timeoutCtxFuc context.CancelFunc
 }
 
-func InitChromedpCrawler(ctx context.Context, cfg *config.Config) ChromedpCrawler {
+func InitChromedpCrawler(ctx context.Context, cfg *config.Config) ChromeCrawler {
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", cfg.Chromedp.Headless),
 		chromedp.Flag("disable-blink-features", cfg.Chromedp.DisableBlinkFeatures),

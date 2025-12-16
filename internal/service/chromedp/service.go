@@ -20,14 +20,14 @@ import (
 )
 
 type ChromedpService[C entity.Crawlable[D], D model.Document] interface {
-	ChromedpCrawler() chrome.ChromedpCrawler
+	ChromedpCrawler() chrome.ChromeCrawler
 	TypedEsClient() es.TypedEsClient[D]
 	Embedder() embedding.Embedder
 	ScrollCrawl(ctx context.Context, params *param.Scroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
 }
 
 type chromedpService[C entity.Crawlable[D], D model.Document] struct {
-	chromedpCrawler chrome.ChromedpCrawler
+	chromedpCrawler chrome.ChromeCrawler
 	typedEsClient   es.TypedEsClient[D]
 	embedder        embedding.Embedder
 	processSem      chan struct{}
@@ -35,7 +35,7 @@ type chromedpService[C entity.Crawlable[D], D model.Document] struct {
 }
 
 func InitChromedpService[C entity.Crawlable[D], D model.Document](
-	chromedpCrawler chrome.ChromedpCrawler,
+	chromedpCrawler chrome.ChromeCrawler,
 	typedEsClient es.TypedEsClient[D],
 	embedder embedding.Embedder,
 	processSemSize int,
@@ -50,7 +50,7 @@ func InitChromedpService[C entity.Crawlable[D], D model.Document](
 	}
 }
 
-func (cs *chromedpService[C, D]) ChromedpCrawler() chrome.ChromedpCrawler {
+func (cs *chromedpService[C, D]) ChromedpCrawler() chrome.ChromeCrawler {
 	return cs.chromedpCrawler
 }
 
