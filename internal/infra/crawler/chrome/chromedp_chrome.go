@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/LouYuanbo1/crawleragent/internal/config"
@@ -13,7 +12,6 @@ import (
 )
 
 type chromedpCrawler struct {
-	requestCache  sync.Map
 	allocCtx      context.Context
 	allocCtxFuc   context.CancelFunc
 	pageCtx       context.Context
@@ -44,18 +42,14 @@ func InitChromedpCrawler(ctx context.Context, cfg *config.Config) ChromeCrawler 
 	}
 }
 
-func (cc *chromedpCrawler) Close() {
-	cc.pageCtxFuc()
-	cc.allocCtxFuc()
-	cc.timeoutCtxFuc()
-}
-
 func (cc *chromedpCrawler) PageContext() context.Context {
 	return cc.pageCtx
 }
 
-func (cc *chromedpCrawler) RequestCache() *sync.Map {
-	return &cc.requestCache
+func (cc *chromedpCrawler) Close() {
+	cc.pageCtxFuc()
+	cc.allocCtxFuc()
+	cc.timeoutCtxFuc()
 }
 
 func (cc *chromedpCrawler) InitAndNavigate(url string) error {
@@ -66,28 +60,8 @@ func (cc *chromedpCrawler) InitAndNavigate(url string) error {
 	)
 }
 
-func (cc *chromedpCrawler) ResetAndScroll(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error {
-	// 2. 清空请求缓存 (sync.Map)
-	cc.requestCache.Range(func(key, value any) bool {
-		cc.requestCache.Delete(key)
-		return true // 继续遍历
-	})
-	err := chromedp.Run(cc.pageCtx,
-
-		// 执行滑动操作
-		cc.performScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds),
-
-		chromedp.Sleep(time.Duration(standardSleepSeconds*3)*time.Second+time.Duration(randomDelaySeconds*3)*time.Second),
-	)
-
-	if err != nil {
-		return fmt.Errorf("浏览器自动化执行失败: %v", err)
-	}
-	return nil
-}
-
-func (cc *chromedpCrawler) performScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds int) chromedp.ActionFunc {
-	return func(ctx context.Context) error {
+func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error {
+	scrollFunc := chromedp.ActionFunc(func(ctx context.Context) error {
 		fmt.Println("开始执行滑动操作...")
 
 		// 创建本地随机数生成器
@@ -138,5 +112,10 @@ func (cc *chromedpCrawler) performScrolling(scrollTimes, standardSleepSeconds, r
 
 		fmt.Printf("完成 %d 次滑动\n", scrollTimes)
 		return nil
+	})
+	err := chromedp.Run(cc.pageCtx, scrollFunc)
+	if err != nil {
+		return fmt.Errorf("浏览器自动化执行失败: %v", err)
 	}
+	return nil
 }

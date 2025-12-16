@@ -37,12 +37,7 @@ func main() {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
 	service := service.InitCollyService(collyCollector, esJobClient, embedder, 8, 1)
-	/*
-		service.CollyCrawler().OnHTML("body", func(e *colly.HTMLElement) {
-			fmt.Println(e.Text[:500])
-		})
-	*/
-	service.CollyCrawler().OnResponse(func(r *colly.Response) {
+	collyCollector.OnResponse(func(r *colly.Response) {
 		fmt.Printf("访问: %s\n状态码: %d\n", r.Request.URL, r.StatusCode)
 		fmt.Println("响应头:", r.Headers)
 		fmt.Println("响应体长度:", len(r.Body))

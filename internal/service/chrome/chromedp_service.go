@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/LouYuanbo1/crawleragent/internal/domain/entity"
@@ -12,54 +13,50 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/chrome"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/chromedp/param"
-
+	"github.com/LouYuanbo1/crawleragent/internal/service/chrome/param"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
-type ChromedpService[C entity.Crawlable[D], D model.Document] interface {
-	ChromedpCrawler() chrome.ChromeCrawler
-	TypedEsClient() es.TypedEsClient[D]
-	Embedder() embedding.Embedder
-	ScrollCrawl(ctx context.Context, params *param.Scroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
-}
-
 type chromedpService[C entity.Crawlable[D], D model.Document] struct {
-	chromedpCrawler chrome.ChromeCrawler
-	typedEsClient   es.TypedEsClient[D]
-	embedder        embedding.Embedder
-	processSem      chan struct{}
-	embedSem        chan struct{}
+	chromeCrawler chrome.ChromeCrawler
+	typedEsClient es.TypedEsClient[D]
+	embedder      embedding.Embedder
+	processSem    chan struct{}
+	embedSem      chan struct{}
+	requestCache  sync.Map
 }
 
 func InitChromedpService[C entity.Crawlable[D], D model.Document](
-	chromedpCrawler chrome.ChromeCrawler,
+	chromeCrawler chrome.ChromeCrawler,
 	typedEsClient es.TypedEsClient[D],
 	embedder embedding.Embedder,
 	processSemSize int,
 	embedSemSize int,
-) ChromedpService[C, D] {
+) ChromeService[C, D] {
 	return &chromedpService[C, D]{
-		chromedpCrawler: chromedpCrawler,
-		typedEsClient:   typedEsClient,
-		embedder:        embedder,
-		processSem:      make(chan struct{}, processSemSize),
-		embedSem:        make(chan struct{}, embedSemSize),
+		chromeCrawler: chromeCrawler,
+		typedEsClient: typedEsClient,
+		embedder:      embedder,
+		processSem:    make(chan struct{}, processSemSize),
+		embedSem:      make(chan struct{}, embedSemSize),
 	}
 }
 
-func (cs *chromedpService[C, D]) ChromedpCrawler() chrome.ChromeCrawler {
-	return cs.chromedpCrawler
-}
+func (cs *chromedpService[C, D]) resetAndScroll(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error {
+	// 2. 清空请求缓存 (sync.Map)
+	cs.requestCache.Range(func(key, value any) bool {
+		cs.requestCache.Delete(key)
+		return true // 继续遍历
+	})
 
-func (cs *chromedpService[C, D]) TypedEsClient() es.TypedEsClient[D] {
-	return cs.typedEsClient
-}
+	err := cs.chromeCrawler.PerformScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds)
+	if err != nil {
+		return fmt.Errorf("滑动操作执行失败: %v", err)
+	}
 
-func (cs *chromedpService[C, D]) Embedder() embedding.Embedder {
-	return cs.embedder
+	return nil
 }
 
 // 可能有大模型计算瓶颈或者内存瓶颈，可能要优化
@@ -72,7 +69,7 @@ func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.
 
 	// 初始化
 	log.Printf("初始化浏览器并导航到: %s", params.Url)
-	if err := cs.chromedpCrawler.InitAndNavigate(params.Url); err != nil {
+	if err := cs.chromeCrawler.InitAndNavigate(params.Url); err != nil {
 		return fmt.Errorf("导航失败: %w", err)
 	}
 	log.Printf("导航成功")
@@ -81,7 +78,7 @@ func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.
 	for i := range params.Rounds {
 		log.Printf("执行第 %d/%d 轮滚动", i+1, params.Rounds)
 
-		if err := cs.chromedpCrawler.ResetAndScroll(params.ScrollTimes, params.StandardSleepSeconds, params.RandomDelaySeconds); err != nil {
+		if err := cs.resetAndScroll(params.ScrollTimes, params.StandardSleepSeconds, params.RandomDelaySeconds); err != nil {
 			return fmt.Errorf("第 %d 轮滚动失败: %w", i+1, err)
 		}
 
@@ -93,8 +90,7 @@ func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.
 }
 
 func (cs *chromedpService[C, D]) SetupNetworkListener(urlPattern string, toCrawlable func(body []byte) ([]C, error)) {
-	pageCtx := cs.chromedpCrawler.PageContext()
-	reqCache := cs.chromedpCrawler.RequestCache()
+	pageCtx := cs.chromeCrawler.PageContext()
 	chromedp.ListenTarget(pageCtx, func(ev any) {
 		switch ev := ev.(type) {
 		case *network.EventResponseReceived:
@@ -103,17 +99,17 @@ func (cs *chromedpService[C, D]) SetupNetworkListener(urlPattern string, toCrawl
 				fmt.Printf("请求ID: %s\n", ev.RequestID)
 				fmt.Printf("检测到目标API响应: %s\n", resp.URL)
 				fmt.Printf("响应状态码: %d\n", resp.Status)
-				reqCache.Store(ev.RequestID, resp.URL)
+				cs.requestCache.Store(ev.RequestID, resp.URL)
 			}
 
 		case *network.EventLoadingFinished:
 			// 当请求加载完成时获取响应体
-			if cachedURL, ok := reqCache.Load(ev.RequestID); ok {
+			if cachedURL, ok := cs.requestCache.Load(ev.RequestID); ok {
 				// 类型断言，因为Load返回any类型
 				if urlStr, ok := cachedURL.(string); ok {
 					if strings.Contains(urlStr, urlPattern) {
 						// 处理完成后删除
-						reqCache.Delete(ev.RequestID)
+						cs.requestCache.Delete(ev.RequestID)
 						go cs.fetchAndProcessResponse(ev.RequestID, urlStr, toCrawlable)
 					}
 				}
@@ -134,7 +130,7 @@ func (cs *chromedpService[C, D]) fetchAndProcessResponse(requestID network.Reque
 	}
 	defer func() { <-cs.processSem }() // 释放信号量
 
-	pageCtx := cs.chromedpCrawler.PageContext()
+	pageCtx := cs.chromeCrawler.PageContext()
 	c := chromedp.FromContext(pageCtx)
 	responseBodyParams := network.GetResponseBody(requestID)
 	ctx := cdp.WithExecutor(pageCtx, c.Target)
