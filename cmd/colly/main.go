@@ -37,12 +37,20 @@ func main() {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
 	service := service.InitCollyService(collyCollector, esJobClient, embedder, 8, 1)
-	service.CollyCrawler().OnHTML("body", func(e *colly.HTMLElement) {
-		fmt.Println(e.Text[:200])
+	/*
+		service.CollyCrawler().OnHTML("body", func(e *colly.HTMLElement) {
+			fmt.Println(e.Text[:500])
+		})
+	*/
+	service.CollyCrawler().OnResponse(func(r *colly.Response) {
+		fmt.Printf("访问: %s\n状态码: %d\n", r.Request.URL, r.StatusCode)
+		fmt.Println("响应头:", r.Headers)
+		fmt.Println("响应体长度:", len(r.Body))
+		fmt.Println("响应体:", string(r.Body))
 	})
-	service.RecursiveCrawling("a[href*=https://www.bilibili.com/video/]")
+	//service.RecursiveCrawling("a[href*=https://www.bilibili.com/video/]")
 
-	if err := service.Visit("https://www.bilibili.com"); err != nil {
+	if err := service.Visit("https://pkg.go.dev/net/http"); err != nil {
 		log.Fatalf("访问URL失败: %v", err)
 	}
 

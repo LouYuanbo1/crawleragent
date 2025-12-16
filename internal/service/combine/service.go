@@ -21,7 +21,7 @@ import (
 )
 
 type CombineService[C entity.Crawlable[D], D model.Document] interface {
-	ChromedpCrawler() chrome.ChromedpCrawler
+	ChromeCrawler() chrome.ChromeCrawler
 	CollyCrawler() collector.CollyCrawler
 	TypedEsClient() es.TypedEsClient[D]
 	Embedder() embedding.Embedder
@@ -35,16 +35,16 @@ type CombineService[C entity.Crawlable[D], D model.Document] interface {
 }
 
 type combineService[C entity.Crawlable[D], D model.Document] struct {
-	chromedpCrawler chrome.ChromedpCrawler
-	collyCrawler    collector.CollyCrawler
-	typedEsClient   es.TypedEsClient[D]
-	embedder        embedding.Embedder
-	processSem      chan struct{}
-	embedSem        chan struct{}
+	chromeCrawler chrome.ChromeCrawler
+	collyCrawler  collector.CollyCrawler
+	typedEsClient es.TypedEsClient[D]
+	embedder      embedding.Embedder
+	processSem    chan struct{}
+	embedSem      chan struct{}
 }
 
 func InitCombineService[C entity.Crawlable[D], D model.Document](
-	chromedpCrawler chrome.ChromedpCrawler,
+	chromeCrawler chrome.ChromeCrawler,
 	collyCrawler collector.CollyCrawler,
 	typedEsClient es.TypedEsClient[D],
 	embedder embedding.Embedder,
@@ -52,17 +52,17 @@ func InitCombineService[C entity.Crawlable[D], D model.Document](
 	embedSemSize int,
 ) CombineService[C, D] {
 	return &combineService[C, D]{
-		chromedpCrawler: chromedpCrawler,
-		collyCrawler:    collyCrawler,
-		typedEsClient:   typedEsClient,
-		embedder:        embedder,
-		processSem:      make(chan struct{}, processSemSize),
-		embedSem:        make(chan struct{}, embedSemSize),
+		chromeCrawler: chromeCrawler,
+		collyCrawler:  collyCrawler,
+		typedEsClient: typedEsClient,
+		embedder:      embedder,
+		processSem:    make(chan struct{}, processSemSize),
+		embedSem:      make(chan struct{}, embedSemSize),
 	}
 }
 
-func (cs *combineService[C, D]) ChromedpCrawler() chrome.ChromedpCrawler {
-	return cs.chromedpCrawler
+func (cs *combineService[C, D]) ChromeCrawler() chrome.ChromeCrawler {
+	return cs.chromeCrawler
 }
 
 func (cs *combineService[C, D]) CollyCrawler() collector.CollyCrawler {
@@ -119,14 +119,14 @@ func (cs *combineService[C, D]) RecursiveCrawling(hrefSelector string) {
 			// Ignore already visited error, this appears too often
 			var alreadyVisited *colly.AlreadyVisitedError
 			if !errors.As(err, &alreadyVisited) {
-				//log.Printf("already visited: %s", err.Error())
+				return
 			}
 		}
 	})
 }
 
 func (cs *combineService[C, D]) defaultCrawlingFromChrome(response *colly.Response) error {
-	pageCtx := cs.chromedpCrawler.PageContext()
+	pageCtx := cs.chromeCrawler.PageContext()
 	var res string
 
 	err := chromedp.Run(pageCtx,
@@ -166,7 +166,7 @@ func (cs *combineService[C, D]) CustomStrategy(params *param.CustomStrategy[C, D
 }
 
 func (cs *combineService[C, D]) customCrawlingFromChrome(response *colly.Response, actionsFunc []chromedp.Action) error {
-	pageCtx := cs.chromedpCrawler.PageContext()
+	pageCtx := cs.chromeCrawler.PageContext()
 	var res string
 
 	err := chromedp.Run(pageCtx,

@@ -31,7 +31,7 @@ var appConfig []byte
 // 这里的URL是Boss直聘的Golang岗位搜索结果页，你可以根据需要修改
 // urlPattern是Boss直聘的岗位数据api中的一部分,你可以通过f12寻找到它
 var (
-	url        = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=405&experience=102&query=golang"
+	url        = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=406&experience=102&query=golang"
 	urlPattern = "joblist.json"
 )
 
@@ -81,7 +81,7 @@ func main() {
 		UrlPattern: urlPattern,
 		//滚动爬虫运行的轮数,分轮爬行对内存更友好,可以将2*5 改成 5*2,根据实际情况调整
 		//这里设置为1,表示只运行一轮,你可以根据需要调整
-		Rounds: 2,
+		Rounds: 10,
 		//每轮滚动爬取的次数
 		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
 		ScrollTimes: 5,
@@ -134,6 +134,13 @@ func main() {
 		return results, nil
 	},
 	)
+	if err != nil {
+		log.Fatalf("滚动爬取失败: %v", err)
+	}
+	count, err := service.TypedEsClient().CountDocs(ctx)
+	//打印索引中的文档数量
+	fmt.Printf("索引中的文档数量: %d\n", count)
+
 	if err != nil {
 		log.Fatalf("滚动爬取失败: %v", err)
 	}

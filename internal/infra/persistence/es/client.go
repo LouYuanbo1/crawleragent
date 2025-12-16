@@ -23,6 +23,7 @@ type TypedEsClient[D model.Document] interface {
 	IndexDocWithID(ctx context.Context, doc D) error
 	BulkIndexDocsWithID(ctx context.Context, docs []D) error
 	GetDoc(ctx context.Context, id string) (D, error)
+	CountDocs(ctx context.Context) (int64, error)
 	SearchDoc(ctx context.Context, query *types.Query, from, size int) ([]D, int64, error)
 	UpdateDoc(ctx context.Context, doc D) error
 	DeleteDoc(ctx context.Context, id string) error

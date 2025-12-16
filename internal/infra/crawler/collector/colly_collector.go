@@ -86,3 +86,12 @@ func (c *collyCrawler) OnScraped(callback func(r *colly.Response)) {
 func (c *collyCrawler) OnError(callback func(r *colly.Response, err error)) {
 	c.colly.OnError(callback)
 }
+
+func (c *collyCrawler) HasVisited(url string) (bool, error) {
+	hasVisited, err := c.colly.HasVisited(url)
+	if err != nil {
+		log.Printf("HasVisited error: %v", err)
+		return false, err
+	}
+	return hasVisited, nil
+}

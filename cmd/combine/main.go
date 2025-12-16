@@ -88,17 +88,5 @@ func main() {
 	}
 	service.DefaultStrategy(params)
 	service.RecursiveCrawling("a[href]")
-
-	/*
-		params := &param.CustomStrategy[*entity.RowBossJobData, *model.BossJobDoc]{
-			EnableJavascript: true,
-			Selector:         "head title",
-			HTMLFunc: func(e *colly.HTMLElement) error {
-				fmt.Println(e.Text)
-				return nil
-			},
-		}
-		service.CustomStrategy(params)
-	*/
 	service.Crawl(ctx, url)
 }

@@ -218,6 +218,14 @@ func (tec *typedEsClient[D]) SearchDoc(ctx context.Context, query *types.Query, 
 	return results, resp.Hits.Total.Value, nil
 }
 
+func (tec *typedEsClient[D]) CountDocs(ctx context.Context) (int64, error) {
+	resp, err := tec.client.Count().Index(tec.schemaDoc.GetIndex()).Do(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count docs in es: %s", err)
+	}
+	return resp.Count, nil
+}
+
 // 支持部分更新
 func (tec *typedEsClient[D]) UpdateDoc(ctx context.Context, doc D) error {
 	_, err := tec.client.Update(tec.schemaDoc.GetIndex(), doc.GetID()).
