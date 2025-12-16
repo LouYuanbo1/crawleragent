@@ -21,10 +21,6 @@ import (
 )
 
 type CombineService[C entity.Crawlable[D], D model.Document] interface {
-	ChromeCrawler() chrome.ChromeCrawler
-	CollyCrawler() collector.CollyCrawler
-	TypedEsClient() es.TypedEsClient[D]
-	Embedder() embedding.Embedder
 	Crawl(ctx context.Context, url string) error
 	DefaultStrategy(params *param.DefaultStrategy[C, D]) error
 	CustomStrategy(params *param.CustomStrategy[C, D]) error
@@ -59,22 +55,6 @@ func InitCombineService[C entity.Crawlable[D], D model.Document](
 		processSem:    make(chan struct{}, processSemSize),
 		embedSem:      make(chan struct{}, embedSemSize),
 	}
-}
-
-func (cs *combineService[C, D]) ChromeCrawler() chrome.ChromeCrawler {
-	return cs.chromeCrawler
-}
-
-func (cs *combineService[C, D]) CollyCrawler() collector.CollyCrawler {
-	return cs.collyCrawler
-}
-
-func (cs *combineService[C, D]) TypedEsClient() es.TypedEsClient[D] {
-	return cs.typedEsClient
-}
-
-func (cs *combineService[C, D]) Embedder() embedding.Embedder {
-	return cs.embedder
 }
 
 func (cs *combineService[C, D]) Crawl(ctx context.Context, url string) error {

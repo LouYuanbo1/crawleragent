@@ -13,8 +13,8 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
 
-	service "github.com/LouYuanbo1/crawleragent/internal/service/chromedp"
-	"github.com/LouYuanbo1/crawleragent/internal/service/chromedp/param"
+	service "github.com/LouYuanbo1/crawleragent/internal/service/chrome"
+	"github.com/LouYuanbo1/crawleragent/internal/service/chrome/param"
 )
 
 //使用go:embed嵌入appconfig.json文件
@@ -81,7 +81,7 @@ func main() {
 		UrlPattern: urlPattern,
 		//滚动爬虫运行的轮数,分轮爬行对内存更友好,可以将2*5 改成 5*2,根据实际情况调整
 		//这里设置为1,表示只运行一轮,你可以根据需要调整
-		Rounds: 10,
+		Rounds: 2,
 		//每轮滚动爬取的次数
 		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
 		ScrollTimes: 5,
@@ -137,7 +137,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("滚动爬取失败: %v", err)
 	}
-	count, err := service.TypedEsClient().CountDocs(ctx)
+	count, err := esJobClient.CountDocs(ctx)
 	//打印索引中的文档数量
 	fmt.Printf("索引中的文档数量: %d\n", count)
 
