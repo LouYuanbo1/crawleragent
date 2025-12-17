@@ -10,7 +10,6 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
 )
 
 type rodCrawler struct {
@@ -20,20 +19,27 @@ type rodCrawler struct {
 }
 
 func InitRodCrawler(cfg *config.Config) ChromeCrawler {
-	url := launcher.New().
-		Bin(cfg.Rod.Bin).                          // 设置chrome二进制路径
-		Headless(cfg.Rod.Headless).                // 是否无头模式
-		NoSandbox(cfg.Rod.NoSandbox).              // 是否禁用沙箱
-		Leakless(cfg.Rod.Leakless).                // 是否禁用内存泄漏检测
-		Set("user-data-dir", cfg.Rod.UserDataDir). // 设置用户数据目录
-		Set("disable-web-security").               // 禁用同源策略
+	url := launcher.
+		NewUserMode().
+		Bin(cfg.Rod.Bin).                                            // 设置chrome二进制路径
+		Headless(cfg.Rod.Headless).                                  // 是否无头模式
+		Set("disable-blink-features", cfg.Rod.DisableBlinkFeatures). // 禁用Blink特征
+		Set("incognito").                                            // 是否无痕模式
+		Set("disable-dev-shm-usage").                                // 禁用/dev/shm使用
+		Set("no-sandbox").                                           // 是否禁用沙箱
+		Leakless(cfg.Rod.Leakless).                                  // 是否禁用内存泄漏检测
+		Set("user-data-dir", cfg.Rod.UserDataDir).                   // 设置用户数据目录
+		Set("disable-web-security").                                 // 禁用同源策略
+		Set("user-agent", cfg.Rod.UserAgent).                        // 设置用户代理
 		MustLaunch()
 
 	browser := rod.New().ControlURL(url).MustConnect()
+	page := browser.MustPage()
+	router := page.HijackRequests()
 	return &rodCrawler{
 		browser: browser,
-		page:    nil,
-		router:  nil,
+		page:    page,
+		router:  router,
 	}
 }
 func (rc *rodCrawler) PageContext() context.Context {
@@ -42,16 +48,12 @@ func (rc *rodCrawler) PageContext() context.Context {
 
 func (rc *rodCrawler) Close() {
 	rc.browser.MustClose()
-	if rc.router != nil {
-		rc.router.MustStop()
-	}
+	rc.router.MustStop()
 }
 
 func (rc *rodCrawler) InitAndNavigate(url string) error {
-	var err error
-	rc.page, err = rc.browser.Page(proto.TargetCreateTarget{
-		URL: url,
-	})
+	go rc.router.Run()
+	err := rc.page.Navigate(url)
 	if err != nil {
 		return err
 	}
@@ -65,8 +67,7 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := range scrollTimes {
-		time.Sleep(60 * time.Second)
-		rc.page.MustWaitDOMStable()
+		rc.page.MustWaitStable()
 		// 随机选择滑动策略
 		switch localRand.Intn(2) {
 		case 0:
@@ -109,13 +110,6 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 }
 
 func (rc *rodCrawler) SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse) {
-	if rc.page == nil {
-		return
-	}
-	if rc.router == nil && rc.page != nil {
-		// 如果路由器还没有启动，则先启动
-		rc.router = rc.page.HijackRequests()
-	}
 	rc.router.MustAdd(urlPattern, func(hijack *rod.Hijack) {
 		hijack.MustLoadResponse()
 		body := hijack.Response.Body()
