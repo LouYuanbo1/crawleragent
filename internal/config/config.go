@@ -10,11 +10,15 @@ type Config struct {
 	} `json:"elasticsearch"`
 
 	Rod struct {
-		UserDataDir string `json:"user_data_dir"`
-		Headless    bool   `json:"headless"`
-		NoSandbox   bool   `json:"no_sandbox"`
-		Leakless    bool   `json:"leakless"`
-		Bin         string `json:"bin"`
+		UserDataDir          string `json:"user_data_dir"`
+		Headless             bool   `json:"headless"`
+		DisableBlinkFeatures string `json:"disable_blink_features"`
+		Incognito            bool   `json:"incognito"`
+		DisableDevShmUsage   bool   `json:"disable_dev_shm_usage"`
+		NoSandbox            bool   `json:"no_sandbox"`
+		UserAgent            string `json:"user_agent"`
+		Leakless             bool   `json:"leakless"`
+		Bin                  string `json:"bin"`
 	} `json:"rod"`
 
 	Chromedp struct {
