@@ -11,11 +11,14 @@ type Config struct {
 
 	Rod struct {
 		UserDataDir          string `json:"user_data_dir"`
+		UserMode             bool   `json:"user_mode"`
 		Headless             bool   `json:"headless"`
 		DisableBlinkFeatures string `json:"disable_blink_features"`
 		Incognito            bool   `json:"incognito"`
 		DisableDevShmUsage   bool   `json:"disable_dev_shm_usage"`
 		NoSandbox            bool   `json:"no_sandbox"`
+		DefaultPageWidth     int    `json:"default_page_width"`
+		DefaultPageHeight    int    `json:"default_page_height"`
 		UserAgent            string `json:"user_agent"`
 		Leakless             bool   `json:"leakless"`
 		Bin                  string `json:"bin"`
@@ -29,6 +32,8 @@ type Config struct {
 		Incognito            bool   `json:"incognito"`
 		DisableDevShmUsage   bool   `json:"disable_dev_shm_usage"`
 		NoSandbox            bool   `json:"no_sandbox"`
+		DefaultPageWidth     int    `json:"default_page_width"`
+		DefaultPageHeight    int    `json:"default_page_height"`
 		UserAgent            string `json:"user_agent"`
 	} `json:"chromedp"`
 

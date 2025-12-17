@@ -32,7 +32,7 @@ var appConfig []byte
 // urlPattern是Boss直聘的岗位数据api中的一部分,你可以通过f12寻找到它
 var (
 	url        = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=406&experience=102&query=golang"
-	urlPattern = "joblist.json"
+	urlPattern = "*/joblist.json*"
 )
 
 func main() {
@@ -62,7 +62,10 @@ func main() {
 	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据
 	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并返回
 
-	scrollCrawler := chrome.InitRodCrawler(appcfg)
+	scrollCrawler, err := chrome.InitRodCrawler(appcfg)
+	if err != nil {
+		log.Fatalf("初始化RodCrawler失败: %v", err)
+	}
 	defer scrollCrawler.Close()
 
 	//初始化Embedding模型
