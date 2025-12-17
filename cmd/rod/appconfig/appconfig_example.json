@@ -1,0 +1,20 @@
+{
+    "elasticsearch": {
+        "username": "your_elasticsearch_username",
+        "password": "your_elasticsearch_password",
+        "address": "http://localhost:9200"
+    },
+    "rod": {
+        "user_data_dir": "path_where_you_want_to_save_chrome_data",
+        "headless": false,
+        "no_sandbox": true,
+        "leakless": true,
+        "bin":"your_chrome_bin_path"
+    },
+    "embedder": {
+        "host": "http://localhost",
+        "port": 11434,
+        "model": "nomic-embed-text",
+        "batch_size": 5
+    }
+}

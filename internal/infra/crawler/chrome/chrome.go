@@ -1,6 +1,10 @@
 package chrome
 
-import "context"
+import (
+	"context"
+
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
+)
 
 /*
 type Crawlable interface {
@@ -13,5 +17,6 @@ type ChromeCrawler interface {
 	PageContext() context.Context
 	InitAndNavigate(url string) error
 	PerformScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error
+	SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse)
 	Close()
 }

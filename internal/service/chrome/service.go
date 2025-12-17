@@ -9,6 +9,6 @@ import (
 )
 
 type ChromeService[C entity.Crawlable[D], D model.Document] interface {
-	SetupNetworkListener(urlPattern string, toCrawlable func(body []byte) ([]C, error))
-	ScrollCrawl(ctx context.Context, params *param.Scroll, batchSizeEmbedding int, toCrawlable func(body []byte) ([]C, error)) error
+	SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error))
+	ScrollCrawl(ctx context.Context, params *param.Scroll) error
 }

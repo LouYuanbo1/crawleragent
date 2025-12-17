@@ -34,9 +34,11 @@ go.work.sum
 #Chrome user data dir
 cmd/chromedp/user_data_dir/
 cmd/combine/user_data_dir/
+cmd/rod/user_data_dir/
 
 #App config file
 cmd/agent/appconfig/appconfig.json
 cmd/chromedp/appconfig/appconfig.json
 cmd/colly/appconfig/appconfig.json
+cmd/rod/appconfig/appconfig.json
 cmd/combine/appconfig/appconfig.json

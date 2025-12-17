@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/LouYuanbo1/crawleragent/internal/config"
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -14,17 +16,24 @@ import (
 type rodCrawler struct {
 	browser *rod.Browser
 	page    *rod.Page
+	router  *rod.HijackRouter
 }
 
-func InitRodCrawler() ChromeCrawler {
+func InitRodCrawler(cfg *config.Config) ChromeCrawler {
 	url := launcher.New().
-		Headless(false).             // 显示浏览器界面
-		Set("disable-web-security"). // 禁用同源策略
+		Bin(cfg.Rod.Bin).                          // 设置chrome二进制路径
+		Headless(cfg.Rod.Headless).                // 是否无头模式
+		NoSandbox(cfg.Rod.NoSandbox).              // 是否禁用沙箱
+		Leakless(cfg.Rod.Leakless).                // 是否禁用内存泄漏检测
+		Set("user-data-dir", cfg.Rod.UserDataDir). // 设置用户数据目录
+		Set("disable-web-security").               // 禁用同源策略
 		MustLaunch()
 
 	browser := rod.New().ControlURL(url).MustConnect()
 	return &rodCrawler{
 		browser: browser,
+		page:    nil,
+		router:  nil,
 	}
 }
 func (rc *rodCrawler) PageContext() context.Context {
@@ -33,6 +42,9 @@ func (rc *rodCrawler) PageContext() context.Context {
 
 func (rc *rodCrawler) Close() {
 	rc.browser.MustClose()
+	if rc.router != nil {
+		rc.router.MustStop()
+	}
 }
 
 func (rc *rodCrawler) InitAndNavigate(url string) error {
@@ -53,6 +65,8 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := range scrollTimes {
+		time.Sleep(60 * time.Second)
+		rc.page.MustWaitDOMStable()
 		// 随机选择滑动策略
 		switch localRand.Intn(2) {
 		case 0:
@@ -92,4 +106,25 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 	fmt.Printf("完成 %d 次滑动\n", scrollTimes)
 	time.Sleep(time.Duration(standardSleepSeconds*3)*time.Second + time.Duration(randomDelaySeconds*3)*time.Second)
 	return nil
+}
+
+func (rc *rodCrawler) SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse) {
+	if rc.page == nil {
+		return
+	}
+	if rc.router == nil && rc.page != nil {
+		// 如果路由器还没有启动，则先启动
+		rc.router = rc.page.HijackRequests()
+	}
+	rc.router.MustAdd(urlPattern, func(hijack *rod.Hijack) {
+		hijack.MustLoadResponse()
+		body := hijack.Response.Body()
+		fmt.Printf("URL: %s\nResponse Body: %s\n", hijack.Request.URL(), body)
+		respChan <- []types.NetworkResponse{
+			{
+				URL:  hijack.Request.URL().String(),
+				Body: []byte(body),
+			},
+		}
+	})
 }

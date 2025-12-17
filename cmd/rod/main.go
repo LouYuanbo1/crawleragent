@@ -62,7 +62,7 @@ func main() {
 	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据
 	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并返回
 
-	scrollCrawler := chrome.InitChromedpCrawler(ctx, appcfg)
+	scrollCrawler := chrome.InitRodCrawler(appcfg)
 	defer scrollCrawler.Close()
 
 	//初始化Embedding模型

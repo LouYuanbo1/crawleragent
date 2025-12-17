@@ -8,6 +8,15 @@ type Config struct {
 		Password string `json:"password"`
 		Address  string `json:"address"`
 	} `json:"elasticsearch"`
+
+	Rod struct {
+		UserDataDir string `json:"user_data_dir"`
+		Headless    bool   `json:"headless"`
+		NoSandbox   bool   `json:"no_sandbox"`
+		Leakless    bool   `json:"leakless"`
+		Bin         string `json:"bin"`
+	} `json:"rod"`
+
 	Chromedp struct {
 		LifeTime             int    `json:"life_time"`
 		UserDataDir          string `json:"user_data_dir"`

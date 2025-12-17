@@ -15,27 +15,27 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/service/chrome/param"
 )
 
-type chromedpService[C entity.Crawlable[D], D model.Document] struct {
+type rodService[C entity.Crawlable[D], D model.Document] struct {
 	chromeCrawler chrome.ChromeCrawler
 	typedEsClient es.TypedEsClient[D]
 	embedder      embedding.Embedder
 }
 
-func InitChromedpService[C entity.Crawlable[D], D model.Document](
+func InitRodService[C entity.Crawlable[D], D model.Document](
 	chromeCrawler chrome.ChromeCrawler,
 	typedEsClient es.TypedEsClient[D],
 	embedder embedding.Embedder,
+	processSemSize int,
+	embedSemSize int,
 ) ChromeService[C, D] {
-	return &chromedpService[C, D]{
+	return &rodService[C, D]{
 		chromeCrawler: chromeCrawler,
 		typedEsClient: typedEsClient,
 		embedder:      embedder,
 	}
 }
 
-// 可能有大模型计算瓶颈或者内存瓶颈，可能要优化
-
-func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.Scroll) error {
+func (cs *rodService[C, D]) ScrollCrawl(ctx context.Context, params *param.Scroll) error {
 	log.Printf("开始滚动爬取: %s", params.Url)
 
 	// 初始化
@@ -60,7 +60,7 @@ func (cs *chromedpService[C, D]) ScrollCrawl(ctx context.Context, params *param.
 	return nil
 }
 
-func (cs *chromedpService[C, D]) SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error)) {
+func (cs *rodService[C, D]) SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error)) {
 	ctx, cancel := context.WithCancel(ctx)
 	RespChan := make(chan []types.NetworkResponse, RespChanSize)
 	cs.chromeCrawler.SetNetworkListener(urlPattern, RespChan)
@@ -78,7 +78,6 @@ func (cs *chromedpService[C, D]) SetNetworkListener(ctx context.Context, urlPatt
 					return
 				}
 				for _, resp := range resps {
-					log.Printf("收到响应 (URL: %s)", resp.URL)
 					crawlables, err := toCrawlable(resp.Body)
 					if err != nil {
 						log.Printf("处理响应体失败 (URL: %s): %v",
@@ -104,9 +103,9 @@ func (cs *chromedpService[C, D]) SetNetworkListener(ctx context.Context, urlPatt
 	}()
 }
 
-func (cs *chromedpService[C, D]) embeddingDocs(docs []D) {
+func (rs *rodService[C, D]) embeddingDocs(docs []D) {
 	// 从配置中获取批量处理大小
-	batchSizeEmbedding := cs.embedder.BatchSize()
+	batchSizeEmbedding := rs.embedder.BatchSize()
 	reqCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	embeddingStrings := make([]string, 0, len(docs))
@@ -116,7 +115,7 @@ func (cs *chromedpService[C, D]) embeddingDocs(docs []D) {
 	var embeddingVectors [][]float32
 	var err error
 	if len(embeddingStrings) < batchSizeEmbedding {
-		embeddingVectors, err = cs.embedder.Embed(reqCtx, embeddingStrings)
+		embeddingVectors, err = rs.embedder.Embed(reqCtx, embeddingStrings)
 		if err != nil {
 			log.Printf("Embed error: %v", err)
 		}
@@ -127,7 +126,7 @@ func (cs *chromedpService[C, D]) embeddingDocs(docs []D) {
 		for i := 0; i < len(embeddingStrings); i += batchSizeEmbedding {
 			end := i + batchSizeEmbedding
 			end = min(end, len(embeddingStrings))
-			embeddingVectors, err = cs.embedder.Embed(reqCtx, embeddingStrings[i:end])
+			embeddingVectors, err = rs.embedder.Embed(reqCtx, embeddingStrings[i:end])
 			if err != nil {
 				log.Printf("Embed error: %v", err)
 			}
@@ -139,12 +138,12 @@ func (cs *chromedpService[C, D]) embeddingDocs(docs []D) {
 	}
 }
 
-func (cs *chromedpService[C, D]) indexDocs(docs []D) {
+func (rs *rodService[C, D]) indexDocs(docs []D) {
 
 	reqCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	if err := cs.typedEsClient.BulkIndexDocsWithID(reqCtx, docs); err != nil {
+	if err := rs.typedEsClient.BulkIndexDocsWithID(reqCtx, docs); err != nil {
 		log.Printf("Bulk index error: %v", err)
 		return
 	}
