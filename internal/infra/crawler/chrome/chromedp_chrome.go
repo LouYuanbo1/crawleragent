@@ -3,10 +3,15 @@ package chrome
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/LouYuanbo1/crawleragent/internal/config"
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
@@ -17,6 +22,7 @@ type chromedpCrawler struct {
 	pageCtx       context.Context
 	pageCtxFuc    context.CancelFunc
 	timeoutCtxFuc context.CancelFunc
+	requestCache  sync.Map
 }
 
 func InitChromedpCrawler(ctx context.Context, cfg *config.Config) ChromeCrawler {
@@ -65,6 +71,7 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 		fmt.Println("开始执行滑动操作...")
 
 		// 创建本地随机数生成器
+
 		localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 		for i := range scrollTimes {
@@ -118,4 +125,52 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 		return fmt.Errorf("浏览器自动化执行失败: %v", err)
 	}
 	return nil
+}
+
+func (cc *chromedpCrawler) SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse) {
+	chromedp.ListenTarget(cc.pageCtx, func(ev any) {
+		switch ev := ev.(type) {
+		case *network.EventResponseReceived:
+			resp := ev.Response
+			if strings.Contains(resp.URL, urlPattern) {
+				fmt.Printf("请求ID: %s\n", ev.RequestID)
+				fmt.Printf("检测到目标API响应: %s\n", resp.URL)
+				fmt.Printf("响应状态码: %d\n", resp.Status)
+				cc.requestCache.Store(ev.RequestID, resp.URL)
+			}
+
+		case *network.EventLoadingFinished:
+			// 当请求加载完成时获取响应体
+			if cachedURL, ok := cc.requestCache.Load(ev.RequestID); ok {
+				// 类型断言，因为Load返回any类型
+				if urlStr, ok := cachedURL.(string); ok {
+					if strings.Contains(urlStr, urlPattern) {
+						// 处理完成后删除
+						cc.requestCache.Delete(ev.RequestID)
+						go cc.getResponseBody(ev.RequestID, urlStr, respChan)
+					}
+				}
+			}
+		}
+	})
+}
+
+func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedURL string, respChan chan []types.NetworkResponse) {
+	c := chromedp.FromContext(cc.pageCtx)
+	responseBodyParams := network.GetResponseBody(requestID)
+	ctx := cdp.WithExecutor(cc.pageCtx, c.Target)
+	body, err := responseBodyParams.Do(ctx)
+	if err != nil {
+		log.Printf("获取响应体失败 (RequestID: %s): %v",
+			requestID, err)
+		return
+	}
+
+	fmt.Printf("成功获取响应体 (URL: %s, RequestID: %s, 大小: %d bytes)\n", cachedURL, requestID, len(body))
+	respChan <- []types.NetworkResponse{
+		{
+			URL:  cachedURL,
+			Body: body,
+		},
+	}
 }
