@@ -3,7 +3,7 @@
 
 ## 项目简介
 CrawlerAgent是一个爬虫与AI智能体结合的工具，它能够：
-1. 使用Colly,Chromedp爬取网站数据并支持两种混合爬虫
+1. 使用Colly,Chromedp,Rod爬取网站数据并支持混合爬虫
 2. 将爬取的数据存储到Elasticsearch中
 3. 使用Ollama进行文本嵌入和大语言模型交互
 4. 通过智能代理服务回答用户的问题
@@ -12,7 +12,8 @@ CrawlerAgent是一个爬虫与AI智能体结合的工具，它能够：
 1. 编程语言: Go 1.25.4
 2. 爬虫框架:
     1. Colly - 轻量级、快速的爬虫框架
-    2. Chromedp - 基于Chrome DevTools协议的爬虫框架
+    2. Chromedp - 基于Chrome DevTools协议的爬虫框架(考虑暂缓更新,将来可能会替换为Rod爬虫)
+    3. Rod - 基于Chrome DevTools协议的爬虫框架(与Chromedp相比,支持安全并发,Api更现代)
 3. 数据存储: Elasticsearch 9.2.1
 4. AI 模型:
     1. Eino - 工作流编排框架
@@ -26,7 +27,8 @@ crawleragent/
 │   ├── agent/           # AI智能体入口
 │   ├── chromedp/        # Chromedp爬虫入口
 │   ├── colly/           # Colly爬虫入口
-│   └── combine/         # 混合爬虫入口
+│   |── combine/         # 混合爬虫入口
+|   └── rod/             # Rod爬虫入口
 ├── internal/            # 内部包
 │   ├── config/          # 配置管理
 │   ├── domain/          # 领域模型
@@ -54,7 +56,13 @@ crawleragent/
     3. 支持Cookie管理
     4. 支持HTML选择器(jquery风格,基于goquery实现)
 
-    - Chromedp爬虫:基于Chrome DevTools协议
+    - Chromedp爬虫:基于Chrome DevTools协议(考虑暂缓更新,将来可能会替换为Rod爬虫)
+    1. 支持浏览器中运行js代码
+    2. 模拟浏览器操作(本项目中为滚动加载)
+    3. 可配置用户数据目录
+    4. 支持无头模式
+
+    - Rod爬虫:基于Chrome DevTools协议
     1. 支持浏览器中运行js代码
     2. 模拟浏览器操作(本项目中为滚动加载)
     3. 可配置用户数据目录
@@ -95,6 +103,7 @@ crawleragent/
 ### 配置文件
 在每个命令行入口目录下都有一个appconfig文件夹，包含appconfig.json配置文件。你可以根据需要修改配置：
 ```json
+appconfig.example.json
 {
   "elasticsearch": {
     "username": "elastic",
@@ -134,6 +143,11 @@ go run main.go
 #### Chromedp爬虫
 ```bash
 cd cmd/chromedp
+go run main.go
+```
+#### Rod爬虫
+```bash
+cd cmd/rod
 go run main.go
 ```
 #### 混合爬虫
@@ -213,8 +227,7 @@ go run main.go
 1. 在internal/domain/entity中定义新的实体
 2. 在internal/domain/model中定义对应的文档模型
 3. 在调用api时根据待爬网站特征,选择合适的爬虫api并手动设置转换函数
-4. 如果待爬网站为静态页面并需要更灵活处理,可以使用CollyCrawler()获取底层api,进行处理
-5. 如果待爬网站为动态页面并需要更复杂处理,可以使用ChromedpCrawler()获取底层api,进行处理
+
 
 ### 修改智能体工作流
 1. 在internal/service/agent中添加新的节点
@@ -226,14 +239,16 @@ go run main.go
 2. [Eino-Ext](https://github.com/cloudwego/eino-ext)
 3. [Colly](https://github.com/gocolly/colly)
 4. [Chromedp](https://github.com/chromedp/chromedp)
-5. [Elasticsearch](https://github.com/elastic/go-elasticsearch)
-6. 部分代码灵感来自[Emailscraper](https://github.com/lawzava/emailscraper),在此感谢
+5. [Rod](https://github.com/go-rod/rod)
+6. [Elasticsearch](https://github.com/elastic/go-elasticsearch)
+7. 部分代码灵感来自[Emailscraper](https://github.com/lawzava/emailscraper),在此感谢
 
 ## 引用文档
 1. [Eino文档](https://www.cloudwego.io/zh/docs/eino/)
 2. [Colly文档](https://pkg.go.dev/github.com/gocolly/colly)
 3. [Chromedp文档](https://pkg.go.dev/github.com/chromedp/chromedp)
-4. [Elasticsearch文档](https://www.elastic.co/docs/reference/elasticsearch/clients/go)
+4. [Rod文档](https://pkg.go.dev/github.com/go-rod/rod)
+5. [Elasticsearch文档](https://www.elastic.co/docs/reference/elasticsearch/clients/go)
 
 ## 未来计划
 1. 增强智能体的搜索能力,寻找更强的搜索策略
