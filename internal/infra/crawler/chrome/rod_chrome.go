@@ -12,6 +12,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/stealth"
 )
 
 type rodCrawler struct {
@@ -39,7 +40,7 @@ func InitRodCrawler(cfg *config.Config) (ChromeCrawler, error) {
 	}
 
 	browser := rod.New().ControlURL(urlStr).MustConnect()
-	page := browser.MustPage()
+	page := stealth.MustPage(browser)
 	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
 		Width:  cfg.Rod.DefaultPageWidth,
 		Height: cfg.Rod.DefaultPageHeight,

@@ -13,6 +13,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/stealth"
 )
 
 type rodPagePoolCrawler struct {
@@ -33,6 +34,8 @@ func InitRodPagePoolCrawler(cfg *config.Config, pagePoolSize int) (ParallelCrawl
 		options.WithNoSandbox(cfg.Rod.NoSandbox),
 		options.WithUserAgent(cfg.Rod.UserAgent),
 		options.WithLeakless(cfg.Rod.Leakless),
+		options.WithDisableBackgroundNetworking(cfg.Rod.DisableBackgroundNetworking),
+		options.WithDisableBackgroundTimerThrottling(cfg.Rod.DisableBackgroundTimerThrottling),
 	)
 	urlStr, err := url.Launch()
 	if err != nil {
@@ -45,7 +48,7 @@ func InitRodPagePoolCrawler(cfg *config.Config, pagePoolSize int) (ParallelCrawl
 	pagePool := rod.NewPagePool(pagePoolSize)
 
 	createPage := func() (*rod.Page, error) {
-		return browser.Page(proto.TargetCreateTarget{})
+		return stealth.Page(browser)
 	}
 
 	router := browser.HijackRequests()
@@ -76,7 +79,7 @@ func (rppc *rodPagePoolCrawler) PerformOpentionsALL(options []*param.URLOperatio
 	}
 	close(operationCh)
 
-	errCh := make(chan error, len(options))
+	errCh := make(chan error, max(len(options), len(rppc.pagePool)))
 
 	wg := sync.WaitGroup{}
 	for i := range len(rppc.pagePool) {
@@ -122,7 +125,7 @@ func (rppc *rodPagePoolCrawler) PerformOpentionsALL(options []*param.URLOperatio
 					rppc.pagePool.Put(page)
 					continue
 				}
-				//减少页面池中的页面数量
+				//这里的Put返回的是空余的page结构体
 				rppc.pagePool.Put(page)
 			}
 		}(i)
@@ -172,6 +175,9 @@ func (rppc *rodPagePoolCrawler) performClick(page *rod.Page, option *param.URLOp
 		return fmt.Errorf("查找元素失败: %v", err)
 	}
 	for range option.Times {
+
+		page.MustActivate()
+
 		err = element.Click(proto.InputMouseButtonLeft, 1)
 		if err != nil {
 			return fmt.Errorf("点击失败: %v", err)
@@ -189,6 +195,9 @@ func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, option *param.URLO
 	totalSleep := time.Duration((float64(option.StandardSleepSeconds) + randomDelay) * float64(time.Second))
 
 	for range option.Times {
+
+		page.MustActivate()
+
 		element, err := page.ElementX(option.Selector)
 		if err != nil {
 			return fmt.Errorf("查找元素失败: %v", err)
@@ -211,6 +220,9 @@ func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, option *param.U
 	var totalSleep time.Duration
 
 	for i := range option.Times {
+
+		page.MustActivate()
+
 		// 获取页面高度
 		height, err := page.Eval(`() => document.body.scrollHeight`)
 		if err != nil {
@@ -233,7 +245,7 @@ func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, option *param.U
 		}
 
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
-
+		page.MustWaitStable()
 		// 随机延迟
 		randomDelay := rand.Float64() * float64(option.RandomDelaySeconds)
 		totalSleep = time.Duration((float64(option.StandardSleepSeconds) + randomDelay) * float64(time.Second))
@@ -241,9 +253,8 @@ func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, option *param.U
 		time.Sleep(totalSleep)
 	}
 
-	time.Sleep(2 * totalSleep)
-	fmt.Printf("滚动任务完成,等待 %.1f 秒\n", 2*totalSleep.Seconds())
-
+	time.Sleep(totalSleep)
+	fmt.Println("滚动任务完成")
 	return nil
 }
 

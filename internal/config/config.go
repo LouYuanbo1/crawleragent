@@ -22,6 +22,10 @@ type Config struct {
 		UserAgent            string `json:"user_agent"`
 		Leakless             bool   `json:"leakless"`
 		Bin                  string `json:"bin"`
+		//(禁用后台标签页定时器节流)
+		DisableBackgroundNetworking bool `json:"disable_background_networking"`
+		//(禁用后台网络) 设为false
+		DisableBackgroundTimerThrottling bool `json:"disable-background-timer-throttling"`
 	} `json:"rod"`
 
 	Chromedp struct {
