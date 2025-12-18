@@ -8,3 +8,12 @@ type Scroll struct {
 	StandardSleepSeconds int    `json:"standard_sleep_seconds"`
 	RandomDelaySeconds   int    `json:"random_delay_seconds"`
 }
+
+type Click struct {
+	Url                  string `json:"url"`
+	Selector             string `json:"selector"`
+	Rounds               int    `json:"rounds"`
+	ClickTimes           int    `json:"click_times"`
+	StandardSleepSeconds int    `json:"standard_sleep_seconds"`
+	RandomDelaySeconds   int    `json:"random_delay_seconds"`
+}

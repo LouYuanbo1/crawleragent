@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"time"
@@ -72,11 +72,11 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 
 		// 创建本地随机数生成器
 
-		localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+		var totalSleep time.Duration
 
 		for i := range scrollTimes {
 			// 随机选择滑动策略
-			switch localRand.Intn(2) {
+			switch rand.IntN(2) {
 			case 0:
 				// 滑动到底部
 				js := `window.scrollTo({
@@ -89,7 +89,7 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 				fmt.Printf("第 %d 次滑动: 到底部\n", i+1)
 			case 1:
 				// 滑动到随机比例
-				ratio := 0.7 + localRand.Float64()*0.3 // 70%-100% 位置
+				ratio := 0.7 + rand.Float64()*0.3 // 70%-100% 位置
 				js := fmt.Sprintf(`window.scrollTo({
 					top: document.body.scrollHeight * %f,
 					behavior: 'smooth'
@@ -100,8 +100,8 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 				fmt.Printf("第 %d 次滑动: 到 %.0f%% 位置\n", i+1, ratio*100)
 			}
 
-			randomDelay := time.Duration(localRand.Float64() * float64(randomDelaySeconds) * float64(time.Second))
-			totalSleep := time.Duration(standardSleepSeconds)*time.Second + randomDelay
+			randomDelay := rand.Float64() * float64(randomDelaySeconds)
+			totalSleep = time.Duration((float64(standardSleepSeconds) + randomDelay) * float64(time.Second))
 
 			fmt.Printf("等待 %.1f 秒\n", totalSleep.Seconds())
 			chromedp.Sleep(totalSleep).Do(ctx)
@@ -153,6 +153,16 @@ func (cc *chromedpCrawler) SetNetworkListener(urlPattern string, respChan chan [
 			}
 		}
 	})
+}
+
+func (cc *chromedpCrawler) PerformClick(selector string, clickCount, standardSleepSeconds, randomDelaySeconds int) error {
+	randomDelay := rand.Float64() * float64(randomDelaySeconds)
+	totalSleep := time.Duration((float64(standardSleepSeconds) + randomDelay) * float64(time.Second))
+
+	return chromedp.Run(cc.pageCtx,
+		chromedp.Click(selector),
+		chromedp.Sleep(totalSleep),
+	)
 }
 
 func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedURL string, respChan chan []types.NetworkResponse) {

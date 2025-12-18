@@ -62,6 +62,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("初始化RodCrawler失败: %v", err)
 	}
+
 	defer scrollCrawler.Close()
 
 	//初始化Embedding模型
@@ -72,13 +73,13 @@ func main() {
 
 	//初始化爬虫服务
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
-	service := service.InitChromedpService(scrollCrawler, esJobClient, embedder)
+	serviceScroll := service.InitChromedpService(scrollCrawler, esJobClient, embedder)
 
 	//这里的handler func(body []byte) ([]*entity.RowBossJobData, error)
 	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据,
 	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并进行Embedding模型生成向量表示,
 	//最后将文档和向量索引到Elasticsearch中
-	service.SetNetworkListener(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
+	serviceScroll.SetNetworkListenerWithIndexDocs(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
 		var jsonData struct {
 			Code    int    `json:"code"`
 			Message string `json:"message"`
@@ -134,15 +135,16 @@ func main() {
 		//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
 	}
 	//开始滚动爬取
-	err = service.ScrollCrawl(ctx, scrollParams)
+	err = serviceScroll.ScrollStrategy(ctx, scrollParams)
 	if err != nil {
-		log.Fatalf("滚动爬取失败: %v", err)
+		log.Fatalf("滚动策略失败: %v", err)
 	}
+
 	count, err := esJobClient.CountDocs(ctx)
+	if err != nil {
+		log.Fatalf("查询索引文档数量失败: %v", err)
+	}
 	//打印索引中的文档数量
 	fmt.Printf("索引中的文档数量: %d\n", count)
 
-	if err != nil {
-		log.Fatalf("滚动爬取失败: %v", err)
-	}
 }
