@@ -95,7 +95,7 @@ func (rc *rodCrawler) InitAndNavigate(url string) error {
 }
 
 func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error {
-	fmt.Println("开始执行滑动操作...")
+	fmt.Println("开始执行滚动任务...")
 
 	// 等待页面完全加载
 	err := rc.page.WaitLoad()
@@ -105,10 +105,12 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 
 	// 等待页面稳定
 	rc.page.MustWaitStable()
-	time.Sleep(2 * time.Second)
+	//time.Sleep(2 * time.Second)
 
 	// 创建本地随机数生成器
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	var totalSleep time.Duration
 
 	for i := range scrollTimes {
 		// 获取页面高度
@@ -132,14 +134,17 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 			}
 		}
 
-		fmt.Printf("第 %d 次滑动完成，目标位置: %f\n", i+1, currentScroll)
+		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
 
 		// 随机延迟
 		randomDelay := time.Duration(localRand.Float64() * float64(randomDelaySeconds) * float64(time.Second))
-		totalSleep := time.Duration(standardSleepSeconds)*time.Second + randomDelay
+		totalSleep = time.Duration(standardSleepSeconds)*time.Second + randomDelay
 		fmt.Printf("等待 %.1f 秒\n", totalSleep.Seconds())
 		time.Sleep(totalSleep)
 	}
+
+	time.Sleep(2 * totalSleep)
+	fmt.Printf("滚动任务完成,等待 %.1f 秒\n", 2*totalSleep.Seconds())
 
 	return nil
 }
