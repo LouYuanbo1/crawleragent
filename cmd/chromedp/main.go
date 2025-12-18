@@ -76,7 +76,7 @@ func main() {
 	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据,
 	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并进行Embedding模型生成向量表示,
 	//最后将文档和向量索引到Elasticsearch中
-	service.SetNetworkListener(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
+	service.SetNetworkListenerWithIndexDocs(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
 		var jsonData struct {
 			Code    int    `json:"code"`
 			Message string `json:"message"`
@@ -131,9 +131,9 @@ func main() {
 		RandomDelaySeconds: 2,
 		//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
 	}
-	err = service.ScrollCrawl(ctx, scrollParams)
+	err = service.ScrollStrategy(ctx, scrollParams)
 	if err != nil {
-		log.Fatalf("滚动爬取失败: %v", err)
+		log.Fatalf("滚动策略失败: %v", err)
 	}
 	count, err := esJobClient.CountDocs(ctx)
 	//打印索引中的文档数量

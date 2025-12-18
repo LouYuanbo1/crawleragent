@@ -33,8 +33,8 @@ func InitRodService[C entity.Crawlable[D], D model.Document](
 	}
 }
 
-func (cs *rodService[C, D]) ScrollCrawl(ctx context.Context, params *param.Scroll) error {
-	log.Printf("开始滚动爬取: %s", params.Url)
+func (cs *rodService[C, D]) ScrollStrategy(ctx context.Context, params *param.Scroll) error {
+	log.Printf("开始滚动策略: %s", params.Url)
 
 	// 初始化
 	log.Printf("初始化浏览器并导航到: %s", params.Url)
@@ -58,7 +58,32 @@ func (cs *rodService[C, D]) ScrollCrawl(ctx context.Context, params *param.Scrol
 	return nil
 }
 
-func (cs *rodService[C, D]) SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error)) {
+func (cs *chromedpService[C, D]) ClickStrategy(ctx context.Context, params *param.Click) error {
+	log.Printf("开始点击策略: %s", params.Url)
+
+	// 初始化
+	log.Printf("初始化浏览器并导航到: %s", params.Url)
+	if err := cs.chromeCrawler.InitAndNavigate(params.Url); err != nil {
+		return fmt.Errorf("导航失败: %w", err)
+	}
+	log.Printf("导航成功")
+
+	// 执行多轮滚动
+	for i := range params.Rounds {
+		log.Printf("执行第 %d/%d 轮点击", i+1, params.Rounds)
+
+		if err := cs.chromeCrawler.PerformClick(params.Selector, params.ClickTimes, params.StandardSleepSeconds, params.RandomDelaySeconds); err != nil {
+			return fmt.Errorf("第 %d 轮点击失败: %w", i+1, err)
+		}
+
+		log.Printf("第 %d 轮点击完成", i+1)
+	}
+
+	log.Printf("点击策略完成: %s", params.Url)
+	return nil
+}
+
+func (cs *rodService[C, D]) SetNetworkListenerWithIndexDocs(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error)) {
 	ctx, cancel := context.WithCancel(ctx)
 	RespChan := make(chan []types.NetworkResponse, RespChanSize)
 	cs.chromeCrawler.SetNetworkListener(urlPattern, RespChan)
@@ -92,6 +117,34 @@ func (cs *rodService[C, D]) SetNetworkListener(ctx context.Context, urlPattern s
 					}
 					cs.embeddingDocs(docs)
 					cs.indexDocs(docs)
+				}
+			case <-ctx.Done():
+				log.Printf("取消监听: %s", urlPattern)
+				return
+			}
+		}
+	}()
+}
+
+func (cs *rodService[C, D]) SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int) {
+	ctx, cancel := context.WithCancel(ctx)
+	RespChan := make(chan []types.NetworkResponse, RespChanSize)
+	cs.chromeCrawler.SetNetworkListener(urlPattern, RespChan)
+	go func() {
+		defer func() {
+			close(RespChan)
+			log.Printf("关闭监听: %s", urlPattern)
+			cancel()
+		}()
+		for {
+			select {
+			case resps, ok := <-RespChan:
+				if !ok {
+					log.Printf("响应通道已关闭: %s", urlPattern)
+					return
+				}
+				for _, resp := range resps {
+					log.Printf("收到响应 (URL: %s)", resp.URL)
 				}
 			case <-ctx.Done():
 				log.Printf("取消监听: %s", urlPattern)

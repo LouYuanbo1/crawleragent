@@ -3,7 +3,7 @@ package chrome
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"time"
 
 	"github.com/LouYuanbo1/crawleragent/internal/config"
@@ -20,21 +20,6 @@ type rodCrawler struct {
 }
 
 func InitRodCrawler(cfg *config.Config) (ChromeCrawler, error) {
-	/*
-		url := launcher.
-			NewUserMode().
-			Bin(cfg.Rod.Bin).                                            // 设置chrome二进制路径
-			Headless(cfg.Rod.Headless).                                  // 是否无头模式
-			Set("disable-blink-features", cfg.Rod.DisableBlinkFeatures). // 禁用Blink特征
-			Set("incognito").                                            // 是否无痕模式
-			Set("disable-dev-shm-usage").                                // 禁用/dev/shm使用
-			Set("no-sandbox").                                           // 是否禁用沙箱
-			Leakless(cfg.Rod.Leakless).                                  // 是否禁用内存泄漏检测
-			Set("user-data-dir", cfg.Rod.UserDataDir).                   // 设置用户数据目录
-			Set("disable-web-security").                                 // 禁用同源策略
-			Set("user-agent", cfg.Rod.UserAgent).                        // 设置用户代理
-			MustLaunch()
-	*/
 	url := CreateLauncher(cfg.Rod.UserMode,
 		WithBin(cfg.Rod.Bin),
 		WithUserDataDir(cfg.Rod.UserDataDir),
@@ -94,6 +79,25 @@ func (rc *rodCrawler) InitAndNavigate(url string) error {
 	return nil
 }
 
+func (rc *rodCrawler) PerformClick(selector string, clickTimes int, standardSleepSeconds, randomDelaySeconds int) error {
+	randomDelay := rand.Float64() * float64(randomDelaySeconds)
+	totalSleep := time.Duration((float64(standardSleepSeconds) + randomDelay) * float64(time.Second))
+
+	element, err := rc.page.Element(selector)
+	if err != nil {
+		return fmt.Errorf("查找元素失败: %v", err)
+	}
+	err = element.Click(proto.InputMouseButtonLeft, clickTimes)
+	if err != nil {
+		return fmt.Errorf("点击失败: %v", err)
+	}
+	// 等待页面稳定
+	rc.page.MustWaitStable()
+	time.Sleep(totalSleep)
+
+	return nil
+}
+
 func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error {
 	fmt.Println("开始执行滚动任务...")
 
@@ -108,9 +112,6 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 		rc.page.MustWaitStable()
 	*/
 
-	// 创建本地随机数生成器
-	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-
 	var totalSleep time.Duration
 
 	for i := range scrollTimes {
@@ -122,7 +123,7 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 
 		// 计算目标滚动位置（随机滚动到 80%-95% 位置）
 		totalHeight := height.Value.Int()
-		currentScroll := float64(totalHeight) * (0.7 + localRand.Float64()*0.25)
+		currentScroll := float64(totalHeight) * (0.7 + rand.Float64()*0.25)
 
 		// 使用 Rod 的 API 滚动
 		err = rc.page.Mouse.Scroll(0, currentScroll, 1)
@@ -138,8 +139,8 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
 
 		// 随机延迟
-		randomDelay := time.Duration(localRand.Float64() * float64(randomDelaySeconds) * float64(time.Second))
-		totalSleep = time.Duration(standardSleepSeconds)*time.Second + randomDelay
+		randomDelay := rand.Float64() * float64(randomDelaySeconds)
+		totalSleep = time.Duration((float64(standardSleepSeconds) + randomDelay) * float64(time.Second))
 		fmt.Printf("等待 %.1f 秒\n", totalSleep.Seconds())
 		time.Sleep(totalSleep)
 	}
