@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/LouYuanbo1/crawleragent/internal/config"
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/options"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
@@ -20,17 +21,17 @@ type rodCrawler struct {
 }
 
 func InitRodCrawler(cfg *config.Config) (ChromeCrawler, error) {
-	url := CreateLauncher(cfg.Rod.UserMode,
-		WithBin(cfg.Rod.Bin),
-		WithUserDataDir(cfg.Rod.UserDataDir),
-		WithHeadless(cfg.Rod.Headless),
-		WithDisableBlinkFeatures(cfg.Rod.DisableBlinkFeatures),
-		WithIncognito(cfg.Rod.Incognito),
-		WithDisableDevShmUsage(cfg.Rod.DisableDevShmUsage),
-		WithNoSandbox(cfg.Rod.NoSandbox),
+	url := options.CreateLauncher(cfg.Rod.UserMode,
+		options.WithBin(cfg.Rod.Bin),
+		options.WithUserDataDir(cfg.Rod.UserDataDir),
+		options.WithHeadless(cfg.Rod.Headless),
+		options.WithDisableBlinkFeatures(cfg.Rod.DisableBlinkFeatures),
+		options.WithIncognito(cfg.Rod.Incognito),
+		options.WithDisableDevShmUsage(cfg.Rod.DisableDevShmUsage),
+		options.WithNoSandbox(cfg.Rod.NoSandbox),
 		//WithWindowSize(cfg.Rod.DefaultPageWidth, cfg.Rod.DefaultPageHeight),
-		WithUserAgent(cfg.Rod.UserAgent),
-		WithLeakless(cfg.Rod.Leakless),
+		options.WithUserAgent(cfg.Rod.UserAgent),
+		options.WithLeakless(cfg.Rod.Leakless),
 	)
 	urlStr, err := url.Launch()
 	if err != nil {
@@ -76,6 +77,7 @@ func (rc *rodCrawler) InitAndNavigate(url string) error {
 
 	// 等待更长时间确保JavaScript环境就绪
 	rc.page.MustWaitStable()
+	time.Sleep(2 * time.Second)
 	return nil
 }
 
@@ -87,13 +89,15 @@ func (rc *rodCrawler) PerformClick(selector string, clickTimes int, standardSlee
 	if err != nil {
 		return fmt.Errorf("查找元素失败: %v", err)
 	}
-	err = element.Click(proto.InputMouseButtonLeft, clickTimes)
-	if err != nil {
-		return fmt.Errorf("点击失败: %v", err)
+	for range clickTimes {
+		err = element.Click(proto.InputMouseButtonLeft, 1)
+		if err != nil {
+			return fmt.Errorf("点击失败: %v", err)
+		}
+		// 等待页面稳定
+		rc.page.MustWaitStable()
+		time.Sleep(totalSleep)
 	}
-	// 等待页面稳定
-	rc.page.MustWaitStable()
-	time.Sleep(totalSleep)
 
 	return nil
 }
@@ -144,8 +148,6 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 		fmt.Printf("等待 %.1f 秒\n", totalSleep.Seconds())
 		time.Sleep(totalSleep)
 	}
-
-	time.Sleep(2 * totalSleep)
 	fmt.Printf("滚动任务完成,等待 %.1f 秒\n", 2*totalSleep.Seconds())
 
 	return nil

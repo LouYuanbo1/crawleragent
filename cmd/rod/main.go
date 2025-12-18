@@ -12,9 +12,9 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/chrome"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
+	"github.com/LouYuanbo1/crawleragent/param"
 
 	service "github.com/LouYuanbo1/crawleragent/internal/service/chrome"
-	"github.com/LouYuanbo1/crawleragent/internal/service/chrome/param"
 )
 
 //使用go:embed嵌入appconfig.json文件
@@ -121,10 +121,7 @@ func main() {
 	)
 	scrollParams := &param.Scroll{
 		Url: url,
-		//滚动爬虫运行的轮数,分轮爬行,每轮之间等待时间为StandardSleepSeconds + RandomDelaySeconds
-		Rounds: 2,
-		//每轮滚动爬取的次数
-		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
+		//这里设置为5,表示滚动爬取5次,你可以根据需要调整
 		ScrollTimes: 5,
 		//标准 sleep 时间(秒)
 		//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒

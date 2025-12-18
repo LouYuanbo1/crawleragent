@@ -11,7 +11,8 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/llm"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/agent/param"
+	"github.com/LouYuanbo1/crawleragent/param"
+
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/elastic/go-elasticsearch/v9"
@@ -40,9 +41,9 @@ func InitAgentService[D model.Document](
 	llm llm.LLM,
 	es es.TypedEsClient[D],
 	embedder embedding.Embedder,
-	params *param.Agent,
+	param *param.Agent,
 ) (AgentService[D], error) {
-	graph, err := initAgentGraph(ctx, llm, es, embedder, params)
+	graph, err := initAgentGraph(ctx, llm, es, embedder, param)
 	if err != nil {
 		return nil, fmt.Errorf("创建流程图失败: %w", err)
 	}
@@ -55,12 +56,12 @@ func initAgentGraph[D model.Document](
 	llm llm.LLM,
 	typedEsClient es.TypedEsClient[D],
 	embedder embedding.Embedder,
-	params *param.Agent,
+	param *param.Agent,
 ) (compose.Runnable[map[string]any, map[string]any], error) {
 	// 生成State,包含索引名称, TypedEsClient, Embedder 等状态信息
 	genState := func(ctx context.Context) *State {
 		return &State{
-			IndexName:     params.IndexName,
+			IndexName:     param.IndexName,
 			TypedEsClient: typedEsClient.GetClient(),
 			Embedder:      embedder,
 		}
@@ -83,13 +84,13 @@ func initAgentGraph[D model.Document](
 		return nil, err
 	}
 	// 添加搜索模式提示节点,用于根据用户查询意图,生成搜索模式的提示
-	err = graph.AddChatTemplateNode("searchModePrompt", params.Prompt["searchMode"])
+	err = graph.AddChatTemplateNode("searchModePrompt", param.Prompt["searchMode"])
 	if err != nil {
 		log.Printf("Error adding prompt template node: %v", err)
 		return nil, err
 	}
 	// 添加聊天模式提示节点,用于根据用户查询意图,生成聊天模式的提示
-	err = graph.AddChatTemplateNode("chatModePrompt", params.Prompt["chatMode"])
+	err = graph.AddChatTemplateNode("chatModePrompt", param.Prompt["chatMode"])
 	if err != nil {
 		log.Printf("Error adding prompt template node: %v", err)
 		return nil, err
