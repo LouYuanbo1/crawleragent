@@ -3,7 +3,7 @@
 
 ## 项目简介
 CrawlerAgent是一个爬虫与AI智能体结合的工具，它能够：
-1. 使用Colly,Chromedp,Rod爬取网站数据并支持混合爬虫
+1. 使用Colly,Chromedp,Rod爬取网站数据
 2. 将爬取的数据存储到Elasticsearch中
 3. 使用Ollama进行文本嵌入和大语言模型交互
 4. 通过智能代理服务回答用户的问题
@@ -27,7 +27,6 @@ crawleragent/
 │   ├── agent/           # AI智能体入口
 │   ├── chromedp/        # Chromedp爬虫入口
 │   ├── colly/           # Colly爬虫入口
-│   |── combine/         # 混合爬虫入口
 |   └── rod/             # Rod爬虫入口
 ├── internal/            # 内部包
 │   ├── config/          # 配置管理
@@ -67,6 +66,7 @@ crawleragent/
     2. 模拟浏览器操作(本项目中为滚动加载)
     3. 可配置用户数据目录
     4. 支持无头模式
+    5. 更现代的Api设计,支持并发操作
 
 2. 数据存储模块
     - 使用Elasticsearch存储爬取的数据
@@ -115,11 +115,6 @@ appconfig.example.json
     "headless": true,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
   },
-  "colly": {
-    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "allowed_domains": ["www.bilibili.com"],
-    "max_depth": 1
-  },
   "embedder": {
     "host": "http://localhost",
     "port": 11434,
@@ -150,11 +145,6 @@ go run main.go
 cd cmd/rod
 go run main.go
 ```
-#### 混合爬虫
-```bash
-cd cmd/combine
-go run main.go
-```
 #### 运行智能体
 ```bash
 cd cmd/agent
@@ -165,34 +155,125 @@ go run main.go
 ### 爬取示例
 
 ```go
-// Colly爬虫爬取B站title示例:
-/*
-    这种简单任务可以使用CollyCrawler()获取底层api,进行处理
-    如果想要进行爬取+储存一条龙处理可以使用
-    HandleHTML(
-        ctx context.Context,
-        selector string,
-        toCrawlable func(r *colly.HTMLElement) ([]C, error),
-    )
-    其中selector为html选择器,jquery风格,基于goquery实现
-    toCrawlable为处理函数,输入为html元素,输出为实体列表
-    这样你只需要实现toCrawlable函数,并且你的结构体实现Crawlable接口即可完成爬取+储存一条龙处理
-*/
+//使用Rod爬虫爬取Boss直聘岗位示例:
+var (
+	url        = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=406&experience=102&query=golang"
+	urlPattern = "*/joblist.json*"
+)
 
-// 初始化Colly服务
-service := crawler.InitCollyService(collyCollector, esJobClient, embedder, 8, 1)
+func main() {
+	appcfg, err := config.ParseConfig(appConfig)
+	if err != nil {
+		log.Fatalf("解析配置失败: %v", err)
+	}
 
-// 设置HTML处理函数
-service.CollyCrawler().OnHTML("head title", func(e *colly.HTMLElement) {
-    fmt.Println(e.Text)
-})
+	fmt.Printf("Chromedp UserDataDir: %s\n", appcfg.Chromedp.UserDataDir)
 
-// 访问B站
-if err := service.Visit("https://www.bilibili.com"); err != nil {
-    log.Fatalf("访问URL失败: %v", err)
+	//context.Background()
+	// 这是最常用的根Context，通常用在main函数、初始化或测试中，作为整个Context树的顶层。
+	// 当你不知道使用哪个Context，或者没有可用的Context时，可以使用它作为起点。
+	// 它永远不会被取消，没有超时时间，也没有值。
+	ctx := context.Background()
+	//运行前确保es服务启动完成
+	//初始化Elasticsearch客户端
+	esJobClient, err := es.InitTypedEsClient(appcfg)
+	if err != nil {
+		log.Fatalf("初始化Elasticsearch客户端失败: %v", err)
+	}
+	//创建索引并设置映射
+	esJobClient.CreateIndexWithMapping(ctx)
+
+	//初始化滚动爬虫
+	//这里的handler func(body []byte) ([]*entity.RowBossJobData, error)
+	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据
+	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并返回
+
+	scrollCrawler, err := chrome.InitRodCrawler(appcfg)
+	if err != nil {
+		log.Fatalf("初始化RodCrawler失败: %v", err)
+	}
+	defer scrollCrawler.Close()
+
+	//初始化Embedding模型
+	embedder, err := embedding.InitEmbedder(ctx, appcfg)
+	if err != nil {
+		log.Fatalf("初始化Embedder失败: %v", err)
+	}
+
+	//初始化爬虫服务
+	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
+	//爬虫服务负责协调滚动爬虫的运行,将爬取到的数据转换为文档,并使用Embedding模型生成向量表示,最后将文档和向量索引到Elasticsearch中
+	service := service.InitChromedpService(scrollCrawler, esJobClient, embedder)
+	service.SetNetworkListener(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
+		var jsonData struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			ZpData  struct {
+				HasMore    bool                    `json:"hasMore"`
+				JobResList []entity.RowBossJobData `json:"jobList"`
+			} `json:"zpData"`
+		}
+
+		if err := json.Unmarshal(body, &jsonData); err != nil {
+			return nil, fmt.Errorf("JSON解析失败: %v", err)
+		}
+
+		if jsonData.Code != 0 {
+			return nil, fmt.Errorf("API返回错误: %d - %s", jsonData.Code, jsonData.Message)
+		}
+
+		results := make([]*entity.RowBossJobData, 0, len(jsonData.ZpData.JobResList))
+		for _, job := range jsonData.ZpData.JobResList {
+			results = append(results, &entity.RowBossJobData{
+				EncryptJobId:     job.EncryptJobId,
+				SecurityId:       job.SecurityId,
+				JobName:          job.JobName,
+				SalaryDesc:       job.SalaryDesc,
+				BrandName:        job.BrandName,
+				BrandScaleName:   job.BrandScaleName,
+				CityName:         job.CityName,
+				AreaDistrict:     job.AreaDistrict,
+				BusinessDistrict: job.BusinessDistrict,
+				JobLabels:        job.JobLabels,
+				Skills:           job.Skills,
+				JobExperience:    job.JobExperience,
+				JobDegree:        job.JobDegree,
+				WelfareList:      job.WelfareList,
+			})
+		}
+		return results, nil
+	},
+	)
+	scrollParams := &param.Scroll{
+		Url: url,
+		//滚动爬虫监听的api
+		//滚动爬虫运行的轮数,分轮爬行对内存更友好,可以将2*5 改成 5*2,根据实际情况调整
+		//这里设置为1,表示只运行一轮,你可以根据需要调整
+		Rounds: 2,
+		//每轮滚动爬取的次数
+		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
+		ScrollTimes: 5,
+		//标准 sleep 时间(秒)
+		//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
+		StandardSleepSeconds: 1,
+		//随机延迟时间(秒)
+		//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
+		RandomDelaySeconds: 2,
+		//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+	}
+	//这里设置为5,表示每次同时词嵌入5个文档,你可以根据需要调整
+	err = service.ScrollCrawl(ctx, scrollParams)
+	if err != nil {
+		log.Fatalf("滚动爬取失败: %v", err)
+	}
+	count, err := esJobClient.CountDocs(ctx)
+	//打印索引中的文档数量
+	fmt.Printf("索引中的文档数量: %d\n", count)
+
+	if err != nil {
+		log.Fatalf("滚动爬取失败: %v", err)
+	}
 }
-// 等待所有请求完成
-service.Wait()
 ```
 
 ### 智能代理示例
@@ -241,7 +322,6 @@ go run main.go
 4. [Chromedp](https://github.com/chromedp/chromedp)
 5. [Rod](https://github.com/go-rod/rod)
 6. [Elasticsearch](https://github.com/elastic/go-elasticsearch)
-7. 部分代码灵感来自[Emailscraper](https://github.com/lawzava/emailscraper),在此感谢
 
 ## 引用文档
 1. [Eino文档](https://www.cloudwego.io/zh/docs/eino/)
