@@ -105,7 +105,6 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 
 	// 等待页面稳定
 	rc.page.MustWaitStable()
-	//time.Sleep(2 * time.Second)
 
 	// 创建本地随机数生成器
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))

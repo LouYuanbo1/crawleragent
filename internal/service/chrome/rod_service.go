@@ -25,8 +25,6 @@ func InitRodService[C entity.Crawlable[D], D model.Document](
 	chromeCrawler chrome.ChromeCrawler,
 	typedEsClient es.TypedEsClient[D],
 	embedder embedding.Embedder,
-	processSemSize int,
-	embedSemSize int,
 ) ChromeService[C, D] {
 	return &rodService[C, D]{
 		chromeCrawler: chromeCrawler,
