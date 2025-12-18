@@ -144,7 +144,7 @@ func (tec *typedEsClient[D]) BulkIndexDocsWithID(ctx context.Context, docs []D) 
 			DocumentID: doc.GetID(),                     // 文档ID
 			Body:       strings.NewReader(string(data)), // 文档内容
 			OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
-				fmt.Printf("Successfully indexed document %s\n", item.DocumentID)
+				//fmt.Printf("Successfully indexed document %s\n", item.DocumentID)
 			},
 			OnFailure: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem, err error) {
 				if err != nil {

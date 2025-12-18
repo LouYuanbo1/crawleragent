@@ -170,7 +170,7 @@ func (rs *rodService[C, D]) embeddingDocs(docs []D) {
 			}
 			for j := range embeddingVectors {
 				docs[i+j].SetEmbedding(embeddingVectors[j])
-				log.Printf("Indexed doc %s with embedding len %d", docs[i+j].GetID(), len(docs[i+j].GetEmbedding()))
+				//log.Printf("Indexed doc %s with embedding len %d", docs[i+j].GetID(), len(docs[i+j].GetEmbedding()))
 			}
 		}
 	}

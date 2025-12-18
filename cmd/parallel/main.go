@@ -118,23 +118,40 @@ func main() {
 		return results, nil
 	},
 	)
+
+	serviceParallel.SetNetworkListener(ctx, "https://www.cnblogs.com/AggSite/AggSitePostList*", 100)
+
 	serviceParallel.StartRouter()
-	params := &param.URLOperation{
-		Url:           url,
-		OperationType: param.OperationScroll,
-		//每轮滚动爬取的次数
-		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
-		Times: 5,
-		//标准 sleep 时间(秒)
-		//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
-		StandardSleepSeconds: 1,
-		//随机延迟时间(秒)
-		//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
-		RandomDelaySeconds: 2,
-		//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+	params := []*param.URLOperation{
+		{
+			Url:           url,
+			OperationType: param.OperationScroll,
+			//每轮滚动爬取的次数
+			//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
+			Times: 5,
+			//标准 sleep 时间(秒)
+			//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
+			StandardSleepSeconds: 1,
+			//随机延迟时间(秒)
+			//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
+			RandomDelaySeconds: 2,
+			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+		},
+		{
+			Url:           "https://www.cnblogs.com/",
+			OperationType: param.OperationXClick,
+			Selector:      `//a[starts-with(@href, "/sitehome/p/") and text()=">"]`,
+			//点击次数
+			Times: 5,
+			//标准 sleep 时间(秒)
+			StandardSleepSeconds: 1,
+			//随机延迟时间(秒)
+			RandomDelaySeconds: 2,
+			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+		},
 	}
 	//开始滚动爬取
-	err = serviceParallel.PerformOpentionsALL([]*param.URLOperation{params})
+	err = serviceParallel.PerformOpentionsALL(params)
 	if err != nil {
 		log.Fatalf("滚动策略失败: %v", err)
 	}
