@@ -9,6 +9,8 @@ require (
 	github.com/cloudwego/eino-ext/components/embedding/ollama v0.0.0-20251204062827-cfc7a22478f0
 	github.com/cloudwego/eino-ext/components/model/ollama v0.1.6
 	github.com/elastic/go-elasticsearch/v9 v9.2.0
+	github.com/go-rod/rod v0.116.2
+	github.com/go-rod/stealth v0.4.9
 	github.com/gocolly/colly/v2 v2.3.0
 )
 
@@ -34,7 +36,6 @@ require (
 	github.com/go-json-experiment/json v0.0.0-20250725192818-e39067aee2d2 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-rod/rod v0.116.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect

@@ -101,3 +101,17 @@ func WithUserAgent(ua string) LauncherOption {
 		}
 	}
 }
+
+func WithDisableBackgroundNetworking(disable bool) LauncherOption {
+	return func(l *launcher.Launcher) {
+		l.Set("disable-background-networking", fmt.Sprintf("%v", disable))
+	}
+}
+
+func WithDisableBackgroundTimerThrottling(disable bool) LauncherOption {
+	return func(l *launcher.Launcher) {
+		if disable {
+			l.Set("disable-background-timer-throttling")
+		}
+	}
+}
