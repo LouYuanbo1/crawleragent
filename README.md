@@ -183,11 +183,7 @@ func main() {
 	//创建索引并设置映射
 	esJobClient.CreateIndexWithMapping(ctx)
 
-	//初始化滚动爬虫
-	//这里的handler func(body []byte) ([]*entity.RowBossJobData, error)
-	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据
-	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并返回
-
+	//初始化Rod爬虫
 	scrollCrawler, err := chrome.InitRodCrawler(appcfg)
 	if err != nil {
 		log.Fatalf("初始化RodCrawler失败: %v", err)
@@ -202,8 +198,11 @@ func main() {
 
 	//初始化爬虫服务
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
-	//爬虫服务负责协调滚动爬虫的运行,将爬取到的数据转换为文档,并使用Embedding模型生成向量表示,最后将文档和向量索引到Elasticsearch中
 	service := service.InitChromedpService(scrollCrawler, esJobClient, embedder)
+    	
+    //这里的handler func(body []byte) ([]*entity.RowBossJobData, error)
+	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据,
+    //将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并进行Embedding模型生成向量表示,最后将文档和向量索引到Elasticsearch中
 	service.SetNetworkListener(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
 		var jsonData struct {
 			Code    int    `json:"code"`
@@ -246,9 +245,7 @@ func main() {
 	)
 	scrollParams := &param.Scroll{
 		Url: url,
-		//滚动爬虫监听的api
-		//滚动爬虫运行的轮数,分轮爬行对内存更友好,可以将2*5 改成 5*2,根据实际情况调整
-		//这里设置为1,表示只运行一轮,你可以根据需要调整
+		//滚动爬虫运行的轮数,分轮爬行,每轮之间等待时间为StandardSleepSeconds + RandomDelaySeconds
 		Rounds: 2,
 		//每轮滚动爬取的次数
 		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
@@ -261,7 +258,7 @@ func main() {
 		RandomDelaySeconds: 2,
 		//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
 	}
-	//这里设置为5,表示每次同时词嵌入5个文档,你可以根据需要调整
+	//开始滚动爬取
 	err = service.ScrollCrawl(ctx, scrollParams)
 	if err != nil {
 		log.Fatalf("滚动爬取失败: %v", err)
