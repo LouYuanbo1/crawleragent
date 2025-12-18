@@ -6,6 +6,7 @@ type OperationType string
 const (
 	OperationScroll OperationType = "scroll"
 	OperationClick  OperationType = "click"
+	OperationXClick OperationType = "xclick"
 )
 
 type URLOperation struct {

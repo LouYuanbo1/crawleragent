@@ -103,6 +103,13 @@ func (rppc *rodPagePoolCrawler) PerformOpentionsALL(options []*param.URLOperatio
 						rppc.pagePool.Put(page)
 						continue
 					}
+				case param.OperationXClick:
+					err = rppc.performXClick(page, op)
+					if err != nil {
+						errCh <- fmt.Errorf("xPath点击操作失败: %v", err)
+						rppc.pagePool.Put(page)
+						continue
+					}
 				case param.OperationScroll:
 					err = rppc.performScrolling(page, op)
 					if err != nil {
@@ -165,6 +172,27 @@ func (rppc *rodPagePoolCrawler) performClick(page *rod.Page, option *param.URLOp
 		return fmt.Errorf("查找元素失败: %v", err)
 	}
 	for range option.Times {
+		err = element.Click(proto.InputMouseButtonLeft, 1)
+		if err != nil {
+			return fmt.Errorf("点击失败: %v", err)
+		}
+		// 等待页面稳定
+		page.MustWaitStable()
+		time.Sleep(totalSleep)
+	}
+
+	return nil
+}
+
+func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, option *param.URLOperation) error {
+	randomDelay := rand.Float64() * float64(option.RandomDelaySeconds)
+	totalSleep := time.Duration((float64(option.StandardSleepSeconds) + randomDelay) * float64(time.Second))
+
+	for range option.Times {
+		element, err := page.ElementX(option.Selector)
+		if err != nil {
+			return fmt.Errorf("查找元素失败: %v", err)
+		}
 		err = element.Click(proto.InputMouseButtonLeft, 1)
 		if err != nil {
 			return fmt.Errorf("点击失败: %v", err)
