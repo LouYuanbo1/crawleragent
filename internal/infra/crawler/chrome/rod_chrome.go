@@ -98,13 +98,15 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 	fmt.Println("开始执行滚动任务...")
 
 	// 等待页面完全加载
-	err := rc.page.WaitLoad()
-	if err != nil {
-		return fmt.Errorf("等待页面加载失败: %v", err)
-	}
+	/*
+		err := rc.page.WaitLoad()
+		if err != nil {
+			return fmt.Errorf("等待页面加载失败: %v", err)
+		}
 
-	// 等待页面稳定
-	rc.page.MustWaitStable()
+		// 等待页面稳定
+		rc.page.MustWaitStable()
+	*/
 
 	// 创建本地随机数生成器
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
