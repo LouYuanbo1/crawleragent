@@ -8,9 +8,9 @@ import (
 	"github.com/LouYuanbo1/crawleragent/param"
 )
 
-type ChromeService[C entity.Crawlable[D], D model.Document] interface {
+type ParallelService[C entity.Crawlable[D], D model.Document] interface {
+	StartRouter()
+	PerformOpentionsALL(options []*param.URLOperation) error
 	SetNetworkListenerWithIndexDocs(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error))
 	SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int)
-	ScrollStrategy(ctx context.Context, param *param.Scroll) error
-	ClickStrategy(ctx context.Context, param *param.Click) error
 }

@@ -1,4 +1,4 @@
-package chrome
+package options
 
 import (
 	"fmt"

@@ -106,17 +106,6 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 			fmt.Printf("等待 %.1f 秒\n", totalSleep.Seconds())
 			chromedp.Sleep(totalSleep).Do(ctx)
 		}
-
-		// 最终滑动和等待
-		finalJS := `window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});`
-		if err := chromedp.Evaluate(finalJS, nil).Do(ctx); err != nil {
-			return fmt.Errorf("最终滑动失败: %v", err)
-		}
-
-		finalSleep := 2 * time.Duration(randomDelaySeconds) * time.Second
-		fmt.Printf("最终等待 %.1f 秒\n", finalSleep.Seconds())
-		chromedp.Sleep(finalSleep).Do(ctx)
-
 		fmt.Printf("完成 %d 次滑动\n", scrollTimes)
 		return nil
 	})
@@ -158,11 +147,16 @@ func (cc *chromedpCrawler) SetNetworkListener(urlPattern string, respChan chan [
 func (cc *chromedpCrawler) PerformClick(selector string, clickCount, standardSleepSeconds, randomDelaySeconds int) error {
 	randomDelay := rand.Float64() * float64(randomDelaySeconds)
 	totalSleep := time.Duration((float64(standardSleepSeconds) + randomDelay) * float64(time.Second))
-
-	return chromedp.Run(cc.pageCtx,
-		chromedp.Click(selector),
-		chromedp.Sleep(totalSleep),
-	)
+	for range clickCount {
+		err := chromedp.Run(cc.pageCtx,
+			chromedp.Click(selector),
+			chromedp.Sleep(totalSleep),
+		)
+		if err != nil {
+			return fmt.Errorf("点击失败: %v", err)
+		}
+	}
+	return nil
 }
 
 func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedURL string, respChan chan []types.NetworkResponse) {

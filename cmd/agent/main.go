@@ -11,9 +11,9 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/llm"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
+	"github.com/LouYuanbo1/crawleragent/param"
 
 	service "github.com/LouYuanbo1/crawleragent/internal/service/agent"
-	"github.com/LouYuanbo1/crawleragent/internal/service/agent/param"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/schema"

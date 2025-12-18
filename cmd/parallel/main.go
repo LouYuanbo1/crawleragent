@@ -9,12 +9,11 @@ import (
 
 	"github.com/LouYuanbo1/crawleragent/internal/config"
 	"github.com/LouYuanbo1/crawleragent/internal/domain/entity"
-	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/chrome"
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/parallel"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
+	service "github.com/LouYuanbo1/crawleragent/internal/service/parallel"
 	"github.com/LouYuanbo1/crawleragent/param"
-
-	service "github.com/LouYuanbo1/crawleragent/internal/service/chrome"
 )
 
 //使用go:embed嵌入appconfig.json文件
@@ -32,7 +31,7 @@ var appConfig []byte
 // urlPattern是Boss直聘的岗位数据api中的一部分,你可以通过f12寻找到它
 var (
 	url        = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=406&experience=102&query=golang"
-	urlPattern = "joblist.json"
+	urlPattern = "https://www.zhipin.com/wapi/zpgeek/search/joblist.json*"
 )
 
 func main() {
@@ -57,10 +56,13 @@ func main() {
 	//创建索引并设置映射
 	esJobClient.CreateIndexWithMapping(ctx)
 
-	//初始化Chromedp爬虫
+	//初始化Rod爬虫
+	parallelCrawler, err := parallel.InitRodPagePoolCrawler(appcfg, 3)
+	if err != nil {
+		log.Fatalf("初始化RodCrawler失败: %v", err)
+	}
 
-	scrollCrawler := chrome.InitChromedpCrawler(ctx, appcfg)
-	defer scrollCrawler.Close()
+	defer parallelCrawler.Close()
 
 	//初始化Embedding模型
 	embedder, err := embedding.InitEmbedder(ctx, appcfg)
@@ -70,13 +72,13 @@ func main() {
 
 	//初始化爬虫服务
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
-	service := service.InitChromedpService(scrollCrawler, esJobClient, embedder)
+	serviceParallel := service.InitRodParallelService(parallelCrawler, esJobClient, embedder)
 
 	//这里的handler func(body []byte) ([]*entity.RowBossJobData, error)
 	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据,
 	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并进行Embedding模型生成向量表示,
 	//最后将文档和向量索引到Elasticsearch中
-	service.SetNetworkListenerWithIndexDocs(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
+	serviceParallel.SetNetworkListenerWithIndexDocs(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
 		var jsonData struct {
 			Code    int    `json:"code"`
 			Message string `json:"message"`
@@ -116,10 +118,13 @@ func main() {
 		return results, nil
 	},
 	)
-	scrollParams := &param.Scroll{
-		Url: url,
-		//这里设置为5,表示滚动爬取5次,你可以根据需要调整
-		ScrollTimes: 5,
+	serviceParallel.StartRouter()
+	params := &param.URLOperation{
+		Url:           url,
+		OperationType: param.OperationScroll,
+		//每轮滚动爬取的次数
+		//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
+		Times: 5,
 		//标准 sleep 时间(秒)
 		//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
 		StandardSleepSeconds: 1,
@@ -128,15 +133,17 @@ func main() {
 		RandomDelaySeconds: 2,
 		//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
 	}
-	err = service.ScrollStrategy(ctx, scrollParams)
+	//开始滚动爬取
+	err = serviceParallel.PerformOpentionsALL([]*param.URLOperation{params})
 	if err != nil {
 		log.Fatalf("滚动策略失败: %v", err)
 	}
+
 	count, err := esJobClient.CountDocs(ctx)
+	if err != nil {
+		log.Fatalf("查询索引文档数量失败: %v", err)
+	}
 	//打印索引中的文档数量
 	fmt.Printf("索引中的文档数量: %d\n", count)
 
-	if err != nil {
-		log.Fatalf("滚动爬取失败: %v", err)
-	}
 }

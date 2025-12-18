@@ -12,7 +12,7 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
-	"github.com/LouYuanbo1/crawleragent/internal/service/chrome/param"
+	"github.com/LouYuanbo1/crawleragent/param"
 )
 
 type chromedpService[C entity.Crawlable[D], D model.Document] struct {
@@ -35,53 +35,41 @@ func InitChromedpService[C entity.Crawlable[D], D model.Document](
 
 // 可能有大模型计算瓶颈或者内存瓶颈，可能要优化
 
-func (cs *chromedpService[C, D]) ScrollStrategy(ctx context.Context, params *param.Scroll) error {
-	log.Printf("开始滚动策略: %s", params.Url)
+func (cs *chromedpService[C, D]) ScrollStrategy(ctx context.Context, param *param.Scroll) error {
+	log.Printf("开始滚动策略: %s", param.Url)
 
 	// 初始化
-	log.Printf("初始化浏览器并导航到: %s", params.Url)
-	if err := cs.chromeCrawler.InitAndNavigate(params.Url); err != nil {
+	log.Printf("初始化浏览器并导航到: %s", param.Url)
+	if err := cs.chromeCrawler.InitAndNavigate(param.Url); err != nil {
 		return fmt.Errorf("导航失败: %w", err)
 	}
 	log.Printf("导航成功")
 
 	// 执行多轮滚动
-	for i := range params.Rounds {
-		log.Printf("执行第 %d/%d 轮滚动", i+1, params.Rounds)
 
-		if err := cs.chromeCrawler.PerformScrolling(params.ScrollTimes, params.StandardSleepSeconds, params.RandomDelaySeconds); err != nil {
-			return fmt.Errorf("第 %d 轮滚动失败: %w", i+1, err)
-		}
-
-		log.Printf("第 %d 轮滚动完成", i+1)
+	if err := cs.chromeCrawler.PerformScrolling(param.ScrollTimes, param.StandardSleepSeconds, param.RandomDelaySeconds); err != nil {
+		return fmt.Errorf("滚动失败: %w", err)
 	}
 
-	log.Printf("滚动爬取完成: %s", params.Url)
+	log.Printf("滚动爬取完成: %s", param.Url)
 	return nil
 }
 
-func (cs *rodService[C, D]) ClickStrategy(ctx context.Context, params *param.Click) error {
-	log.Printf("开始点击策略: %s", params.Url)
+func (cs *chromedpService[C, D]) ClickStrategy(ctx context.Context, param *param.Click) error {
+	log.Printf("开始点击策略: %s", param.Url)
 
 	// 初始化
-	log.Printf("初始化浏览器并导航到: %s", params.Url)
-	if err := cs.chromeCrawler.InitAndNavigate(params.Url); err != nil {
+	log.Printf("初始化浏览器并导航到: %s", param.Url)
+	if err := cs.chromeCrawler.InitAndNavigate(param.Url); err != nil {
 		return fmt.Errorf("导航失败: %w", err)
 	}
 	log.Printf("导航成功")
 
-	// 执行多轮滚动
-	for i := range params.Rounds {
-		log.Printf("执行第 %d/%d 轮点击", i+1, params.Rounds)
-
-		if err := cs.chromeCrawler.PerformClick(params.Selector, params.ClickTimes, params.StandardSleepSeconds, params.RandomDelaySeconds); err != nil {
-			return fmt.Errorf("第 %d 轮点击失败: %w", i+1, err)
-		}
-
-		log.Printf("第 %d 轮点击完成", i+1)
+	if err := cs.chromeCrawler.PerformClick(param.Selector, param.ClickTimes, param.StandardSleepSeconds, param.RandomDelaySeconds); err != nil {
+		return fmt.Errorf("点击失败: %w", err)
 	}
 
-	log.Printf("点击策略完成: %s", params.Url)
+	log.Printf("点击策略完成: %s", param.Url)
 	return nil
 }
 
