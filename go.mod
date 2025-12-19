@@ -8,6 +8,7 @@ require (
 	github.com/cloudwego/eino v0.6.0
 	github.com/cloudwego/eino-ext/components/embedding/ollama v0.0.0-20251204062827-cfc7a22478f0
 	github.com/cloudwego/eino-ext/components/model/ollama v0.1.6
+	github.com/cloudwego/eino-ext/components/tool/duckduckgo/v2 v2.0.0-20251219073121-0fff9abbb56c
 	github.com/elastic/go-elasticsearch/v9 v9.2.0
 	github.com/go-rod/rod v0.116.2
 	github.com/go-rod/stealth v0.4.9
@@ -29,6 +30,7 @@ require (
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/corpix/uarand v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/eino-contrib/jsonschema v1.0.2 // indirect

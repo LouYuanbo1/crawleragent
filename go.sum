@@ -43,6 +43,10 @@ github.com/cloudwego/eino-ext/components/embedding/ollama v0.0.0-20251204062827-
 github.com/cloudwego/eino-ext/components/embedding/ollama v0.0.0-20251204062827-cfc7a22478f0/go.mod h1:mI8QMT4DtgLGUuMTVFDNIgRFmirA//do8UnLmZg0DZ4=
 github.com/cloudwego/eino-ext/components/model/ollama v0.1.6 h1:ZbrhV91uE0hGIOYXhb2i3G6tQJ/rK2SLYtoYrmocZXM=
 github.com/cloudwego/eino-ext/components/model/ollama v0.1.6/go.mod h1:GDXrvorGdRNV6g2mK5jdla2D8Xc/hh7XDrTeGDteLLo=
+github.com/cloudwego/eino-ext/components/tool/duckduckgo/v2 v2.0.0-20251219073121-0fff9abbb56c h1:yUp0duzfqsukEydE3Zkff8VSt8T41qFmfTAidsoR03I=
+github.com/cloudwego/eino-ext/components/tool/duckduckgo/v2 v2.0.0-20251219073121-0fff9abbb56c/go.mod h1:Np0BXy/9hPRu3wCgn+ij6L7YsjFcybVzg1k7uYOXh0M=
+github.com/corpix/uarand v0.2.0 h1:U98xXwud/AVuCpkpgfPF7J5TQgr7R5tqT8VZP5KWbzE=
+github.com/corpix/uarand v0.2.0/go.mod h1:/3Z1QIqWkDIhf6XWn/08/uMHoQ8JUoTIKc2iPchBOmM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
