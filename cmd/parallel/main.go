@@ -10,6 +10,7 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/config"
 	"github.com/LouYuanbo1/crawleragent/internal/domain/entity"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/parallel"
+	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
 	service "github.com/LouYuanbo1/crawleragent/internal/service/parallel"
@@ -30,8 +31,11 @@ var appConfig []byte
 // 这里的URL是Boss直聘的Golang岗位搜索结果页，你可以根据需要修改
 // urlPattern是Boss直聘的岗位数据api中的一部分,你可以通过f12寻找到它
 var (
-	url        = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=406&experience=102&query=golang"
-	urlPattern = "https://www.zhipin.com/wapi/zpgeek/search/joblist.json*"
+	urlBoss           = "https://www.zhipin.com/web/geek/jobs?city=100010000&salary=406&experience=102&query=golang"
+	urlPatternBoss    = "https://www.zhipin.com/wapi/zpgeek/search/joblist.json*"
+	urlCnBlogs        = "https://www.cnblogs.com/"
+	urlPatternCnBlogs = "https://www.cnblogs.com/AggSite/AggSitePostList*"
+	selectorCnBlogs   = `//a[starts-with(@href, "/sitehome/p/") and text()=">"]`
 )
 
 func main() {
@@ -74,11 +78,43 @@ func main() {
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
 	serviceParallel := service.InitRodParallelService(parallelCrawler, esJobClient, embedder)
 
-	//这里的handler func(body []byte) ([]*entity.RowBossJobData, error)
-	//函数是滚动爬虫的回调函数,用于解析Boss直聘的岗位数据api返回的json数据,
-	//将json数据转换为泛型类型(此处为entity.RowBossJobData)的切片,并进行Embedding模型生成向量表示,
-	//最后将文档和向量索引到Elasticsearch中
-	serviceParallel.SetNetworkListenerWithIndexDocs(ctx, urlPattern, 100, func(body []byte) ([]*entity.RowBossJobData, error) {
+	respChanBoss := make(chan []types.NetworkResponse, 100)
+	respChanCnblogs := make(chan []types.NetworkResponse, 100)
+
+	params := []*param.URLOperation{
+		{
+			Url:           urlBoss,
+			OperationType: param.OperationScroll,
+			//每轮滚动爬取的次数
+			//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
+			Times: 5,
+			//标准 sleep 时间(秒)
+			//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
+			StandardSleepSeconds: 1,
+			//随机延迟时间(秒)
+			//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
+			RandomDelaySeconds: 1,
+			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+			UrlPattern: urlPatternBoss,
+			RespChan:   respChanBoss,
+		},
+		{
+			Url:           urlCnBlogs,
+			OperationType: param.OperationXClick,
+			Selector:      selectorCnBlogs,
+			//点击次数
+			Times: 5,
+			//标准 sleep 时间(秒)
+			StandardSleepSeconds: 1,
+			//随机延迟时间(秒)
+			RandomDelaySeconds: 1,
+			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+			UrlPattern: urlPatternCnBlogs,
+			RespChan:   respChanCnblogs,
+		},
+	}
+	//开始滚动爬取
+	serviceParallel.ProcessResponseChanWithIndexDocs(ctx, respChanBoss, func(body []byte) ([]*entity.RowBossJobData, error) {
 		var jsonData struct {
 			Code    int    `json:"code"`
 			Message string `json:"message"`
@@ -119,38 +155,8 @@ func main() {
 	},
 	)
 
-	serviceParallel.SetNetworkListener(ctx, "https://www.cnblogs.com/AggSite/AggSitePostList*", 100)
+	serviceParallel.ProcessResponseChan(ctx, respChanCnblogs)
 
-	serviceParallel.StartRouter()
-	params := []*param.URLOperation{
-		{
-			Url:           url,
-			OperationType: param.OperationScroll,
-			//每轮滚动爬取的次数
-			//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
-			Times: 5,
-			//标准 sleep 时间(秒)
-			//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
-			StandardSleepSeconds: 1,
-			//随机延迟时间(秒)
-			//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
-			RandomDelaySeconds: 2,
-			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
-		},
-		{
-			Url:           "https://www.cnblogs.com/",
-			OperationType: param.OperationXClick,
-			Selector:      `//a[starts-with(@href, "/sitehome/p/") and text()=">"]`,
-			//点击次数
-			Times: 5,
-			//标准 sleep 时间(秒)
-			StandardSleepSeconds: 1,
-			//随机延迟时间(秒)
-			RandomDelaySeconds: 2,
-			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
-		},
-	}
-	//开始滚动爬取
 	err = serviceParallel.PerformOpentionsALL(params)
 	if err != nil {
 		log.Fatalf("滚动策略失败: %v", err)
