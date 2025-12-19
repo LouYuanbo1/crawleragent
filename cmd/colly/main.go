@@ -28,11 +28,11 @@ func main() {
 
 	ctx := context.Background()
 	collyCollector := collector.InitCollyCrawler(appcfg)
-	esJobClient, err := es.InitTypedEsClient(appcfg)
+	esJobClient, err := es.InitTypedEsClient(appcfg, 3)
 	if err != nil {
 		log.Fatalf("初始化Elasticsearch客户端失败: %v", err)
 	}
-	embedder, err := embedding.InitEmbedder(ctx, appcfg)
+	embedder, err := embedding.InitEmbedder(ctx, appcfg, 1)
 	if err != nil {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}

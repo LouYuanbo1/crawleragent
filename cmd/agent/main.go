@@ -39,12 +39,12 @@ func main() {
 
 	ctx := context.Background()
 
-	typedClient, err := es.InitTypedEsClient(appcfg)
+	typedClient, err := es.InitTypedEsClient(appcfg, 3)
 	if err != nil {
 		log.Fatalf("failed to initialize Elasticsearch client: %s", err)
 	}
 
-	embedder, err := embedding.InitEmbedder(ctx, appcfg)
+	embedder, err := embedding.InitEmbedder(ctx, appcfg, 1)
 	if err != nil {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}

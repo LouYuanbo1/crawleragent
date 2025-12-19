@@ -2,19 +2,23 @@ package embedding
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/LouYuanbo1/crawleragent/internal/config"
 	"github.com/cloudwego/eino-ext/components/embedding/ollama"
+	"golang.org/x/sync/semaphore"
 )
 
 type embedder struct {
 	model     *ollama.Embedder
 	batchSize int
+	embedSem  *semaphore.Weighted
 }
 
 // InitEmbedder 初始化嵌入器
-func InitEmbedder(ctx context.Context, cfg *config.Config) (Embedder, error) {
+func InitEmbedder(ctx context.Context, cfg *config.Config, embedSemSize int) (Embedder, error) {
 	model, err := ollama.NewEmbedder(ctx, &ollama.EmbeddingConfig{
 		Model:   cfg.Embedder.Model,
 		BaseURL: cfg.Embedder.Host + ":" + strconv.Itoa(cfg.Embedder.Port),
@@ -22,7 +26,8 @@ func InitEmbedder(ctx context.Context, cfg *config.Config) (Embedder, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &embedder{model: model, batchSize: cfg.Embedder.BatchSize}, nil
+	embedSem := semaphore.NewWeighted(int64(embedSemSize))
+	return &embedder{model: model, batchSize: cfg.Embedder.BatchSize, embedSem: embedSem}, nil
 }
 
 // BatchSize 返回批量处理大小
@@ -32,6 +37,17 @@ func (e *embedder) BatchSize() int {
 
 // Embed 将文本转换为向量表示
 func (e *embedder) Embed(ctx context.Context, strings []string) ([][]float32, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if len(strings) == 0 {
+		return nil, nil
+	}
+	// 获取信号量（带超时）
+	if err := e.embedSem.Acquire(ctx, 1); err != nil {
+		return nil, fmt.Errorf("等待词嵌入信号量超时: %w", err)
+	}
+	defer e.embedSem.Release(1) // 保证释放
+
 	embeddingVectors, err := e.model.EmbedStrings(ctx, strings)
 	if err != nil {
 		return nil, err

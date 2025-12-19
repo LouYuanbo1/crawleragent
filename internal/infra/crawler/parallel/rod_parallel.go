@@ -93,7 +93,7 @@ func (rppc *rodPagePoolCrawler) PerformOpentionsALL(operations []*param.URLOpera
 					// 确保路由停止
 					defer func() {
 						close(op.RespChan)
-						router.Stop()
+						router.Remove(op.UrlPattern)
 					}()
 
 					err = rppc.navigateURL(page, workerID, op.Url)

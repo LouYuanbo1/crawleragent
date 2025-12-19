@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v9"
 	"github.com/elastic/go-elasticsearch/v9/esutil"
 	"github.com/elastic/go-elasticsearch/v9/typedapi/types"
+	"golang.org/x/sync/semaphore"
 )
 
 type typedEsClient[D model.Document] struct {
@@ -22,9 +23,10 @@ type typedEsClient[D model.Document] struct {
 	// 特别说明：这个实例仅用于获取配置信息，不用于存储数据
 	// Instance used for getting schema/configuration, not for data storage
 	schemaDoc D
+	esSem     *semaphore.Weighted
 }
 
-func InitTypedEsClient[D model.Document](cfg *config.Config) (TypedEsClient[D], error) {
+func InitTypedEsClient[D model.Document](cfg *config.Config, esSemSize int) (TypedEsClient[D], error) {
 	typedClient, err := elasticsearch.NewTypedClient(elasticsearch.Config{
 		Username: cfg.Elasticsearch.Username,
 		Password: cfg.Elasticsearch.Password,
@@ -42,7 +44,10 @@ func InitTypedEsClient[D model.Document](cfg *config.Config) (TypedEsClient[D], 
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize Elasticsearch client: %s", err)
 	}
-	return &typedEsClient[D]{client: typedClient}, nil
+	// 初始化信号量
+	esSem := semaphore.NewWeighted(int64(esSemSize))
+
+	return &typedEsClient[D]{client: typedClient, esSem: esSem}, nil
 }
 
 func (tec *typedEsClient[D]) GetClient() *elasticsearch.TypedClient {
@@ -113,6 +118,14 @@ func (tec *typedEsClient[D]) IndexDocWithID(ctx context.Context, doc D) error {
 }
 
 func (tec *typedEsClient[D]) BulkIndexDocsWithID(ctx context.Context, docs []D) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	// 获取信号量（带超时）
+	if err := tec.esSem.Acquire(ctx, 1); err != nil {
+		return fmt.Errorf("等待ES索引信号量超时: %w", err)
+	}
+	defer tec.esSem.Release(1) // 保证释放
+
 	if len(docs) == 0 {
 		return nil
 	}
