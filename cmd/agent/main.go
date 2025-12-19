@@ -119,16 +119,17 @@ func main() {
 		schema.SystemMessage(`
 		角色：你是一个专业的职业顾问，擅长根据用户背景和需求匹配合适的工作岗位，并于用户交流职业规划，倾听用户求助时的烦恼，提供专业的建议并鼓励用户。
 		任务：与用户进行互动，倾听用户的问题、需求和建议，根据用户的背景和需求提供专业的职业规划建议。
-	`),
+		`),
+		schema.SystemMessage(`以下是根据您经过网络查询得到的信息：\n{duckDuckGoResults}\n\n请结合这些信息回答用户的请求。`),
 		schema.UserMessage("{query}"),
 	)
 
 	//初始化Agent
 	params := &param.Agent{
 		IndexName: (&model.BossJobDoc{}).GetIndex(),
-		Prompt: map[string]*prompt.DefaultChatTemplate{
-			"searchMode": searchModePrompt,
-			"chatMode":   chatModePrompt,
+		Prompt: map[param.PromptType]*prompt.DefaultChatTemplate{
+			param.PromptEsRAGMode: searchModePrompt,
+			param.PromptChatMode:  chatModePrompt,
 		},
 	}
 	agent, err := service.InitAgentService(ctx,

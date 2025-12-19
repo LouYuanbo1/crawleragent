@@ -68,11 +68,17 @@ func initAgentGraph[D model.Document](
 	}
 
 	fmt.Printf("genState: %+v\n", genState(ctx))
+
+	duckDuckGoTool, err := InitDuckDuckGo(ctx, param)
+	if err != nil {
+		return nil, fmt.Errorf("初始化DuckDuckGo工具失败: %w", err)
+	}
+
 	// 初始化Compose图,设置全局状态生成函数
 	graph := compose.NewGraph[map[string]any, map[string]any](compose.WithGenLocalState(genState))
 	// 添加意图检测节点,用于识别用户查询的意图,当用户输入以查询模式或搜索模式开头时,将意图设置为"retriever",
 	// 使用爬取的信息做RAG增强
-	err := graph.AddLambdaNode("intentDetection", IntentDetection())
+	err = graph.AddLambdaNode("intentDetection", IntentDetection())
 	if err != nil {
 		log.Printf("Error adding lambda node: %v", err)
 		return nil, err
@@ -84,13 +90,20 @@ func initAgentGraph[D model.Document](
 		return nil, err
 	}
 	// 添加搜索模式提示节点,用于根据用户查询意图,生成搜索模式的提示
-	err = graph.AddChatTemplateNode("searchModePrompt", param.Prompt["searchMode"])
+	err = graph.AddChatTemplateNode("searchModePrompt", param.Prompt["EsRAGMode"])
 	if err != nil {
 		log.Printf("Error adding prompt template node: %v", err)
 		return nil, err
 	}
+
+	err = graph.AddLambdaNode("duckDuckGoSearch", DuckDuckGoSearch(duckDuckGoTool, &param.DuckDuckGoSearch))
+	if err != nil {
+		log.Printf("Error adding lambda node: %v", err)
+		return nil, err
+	}
+
 	// 添加聊天模式提示节点,用于根据用户查询意图,生成聊天模式的提示
-	err = graph.AddChatTemplateNode("chatModePrompt", param.Prompt["chatMode"])
+	err = graph.AddChatTemplateNode("chatModePrompt", param.Prompt["ChatMode"])
 	if err != nil {
 		log.Printf("Error adding prompt template node: %v", err)
 		return nil, err
@@ -109,8 +122,8 @@ func initAgentGraph[D model.Document](
 	}
 
 	err = graph.AddBranch("intentDetection", compose.NewGraphBranch(BranchCondition, map[string]bool{
-		"retriever":      true,
-		"chatModePrompt": true,
+		"retriever":        true,
+		"duckDuckGoSearch": true,
 	}))
 	if err != nil {
 		log.Printf("Error adding branch: %v", err)
@@ -124,6 +137,12 @@ func initAgentGraph[D model.Document](
 	}
 
 	err = graph.AddEdge("searchModePrompt", "llm")
+	if err != nil {
+		log.Printf("Error adding edge: %v", err)
+		return nil, err
+	}
+
+	err = graph.AddEdge("duckDuckGoSearch", "chatModePrompt")
 	if err != nil {
 		log.Printf("Error adding edge: %v", err)
 		return nil, err
