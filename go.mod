@@ -12,6 +12,7 @@ require (
 	github.com/go-rod/rod v0.116.2
 	github.com/go-rod/stealth v0.4.9
 	github.com/gocolly/colly/v2 v2.3.0
+	golang.org/x/sync v0.18.0
 )
 
 require (

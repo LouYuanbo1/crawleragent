@@ -50,7 +50,7 @@ func main() {
 	ctx := context.Background()
 	//运行前确保es服务启动完成
 	//初始化Elasticsearch客户端
-	esJobClient, err := es.InitTypedEsClient(appcfg)
+	esJobClient, err := es.InitTypedEsClient(appcfg, 3)
 	if err != nil {
 		log.Fatalf("初始化Elasticsearch客户端失败: %v", err)
 	}
@@ -66,7 +66,7 @@ func main() {
 	defer scrollCrawler.Close()
 
 	//初始化Embedding模型
-	embedder, err := embedding.InitEmbedder(ctx, appcfg)
+	embedder, err := embedding.InitEmbedder(ctx, appcfg, 1)
 	if err != nil {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}

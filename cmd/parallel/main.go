@@ -53,7 +53,7 @@ func main() {
 	ctx := context.Background()
 	//运行前确保es服务启动完成
 	//初始化Elasticsearch客户端
-	esJobClient, err := es.InitTypedEsClient(appcfg)
+	esJobClient, err := es.InitTypedEsClient(appcfg, 3)
 	if err != nil {
 		log.Fatalf("初始化Elasticsearch客户端失败: %v", err)
 	}
@@ -69,7 +69,7 @@ func main() {
 	defer parallelCrawler.Close()
 
 	//初始化Embedding模型
-	embedder, err := embedding.InitEmbedder(ctx, appcfg)
+	embedder, err := embedding.InitEmbedder(ctx, appcfg, 1)
 	if err != nil {
 		log.Fatalf("初始化Embedder失败: %v", err)
 	}
@@ -95,8 +95,10 @@ func main() {
 			//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
 			RandomDelaySeconds: 1,
 			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+			//监听的url
 			UrlPattern: urlPatternBoss,
-			RespChan:   respChanBoss,
+			//响应通道
+			RespChan: respChanBoss,
 		},
 		{
 			Url:           urlCnBlogs,
@@ -109,8 +111,10 @@ func main() {
 			//随机延迟时间(秒)
 			RandomDelaySeconds: 1,
 			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+			//监听的url
 			UrlPattern: urlPatternCnBlogs,
-			RespChan:   respChanCnblogs,
+			//响应通道
+			RespChan: respChanCnblogs,
 		},
 	}
 	//开始滚动爬取
