@@ -9,7 +9,6 @@ import (
 	"github.com/LouYuanbo1/crawleragent/internal/domain/entity"
 	"github.com/LouYuanbo1/crawleragent/internal/domain/model"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/parallel"
-	"github.com/LouYuanbo1/crawleragent/internal/infra/crawler/types"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/embedding"
 	"github.com/LouYuanbo1/crawleragent/internal/infra/persistence/es"
 	"github.com/LouYuanbo1/crawleragent/param"
@@ -83,7 +82,7 @@ func (rps *rodParallelService[C, D]) indexDocs(docs []D) {
 	}
 }
 
-func (rps *rodParallelService[C, D]) ProcessResponseChanWithIndexDocs(ctx context.Context, RespChan <-chan []types.NetworkResponse, toCrawlable func(body []byte) ([]C, error)) {
+func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Context, listener *param.Listener, toCrawlable func(body []byte) ([]C, error)) {
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer func() {
@@ -91,16 +90,16 @@ func (rps *rodParallelService[C, D]) ProcessResponseChanWithIndexDocs(ctx contex
 		}()
 		for {
 			select {
-			case resps, ok := <-RespChan:
+			case resps, ok := <-listener.RespChan:
 				if !ok {
-					log.Printf("响应通道已关闭")
+					log.Printf("响应通道已关闭,监听UrlPattern:%s\n", listener.UrlPattern)
 					return
 				}
 				for _, resp := range resps {
 					crawlables, err := toCrawlable(resp.Body)
 					if err != nil {
-						log.Printf("处理响应体失败 (URL: %s): %v",
-							resp.URL, err)
+						log.Printf("处理响应体失败 (URL: %s,监听UrlPattern:%s): %v\n",
+							resp.URL, listener.UrlPattern, err)
 						continue
 					}
 					if len(crawlables) == 0 {
@@ -115,14 +114,14 @@ func (rps *rodParallelService[C, D]) ProcessResponseChanWithIndexDocs(ctx contex
 					rps.indexDocs(docs)
 				}
 			case <-ctx.Done():
-				log.Printf("取消处理响应")
+				log.Printf("取消处理响应,监听UrlPattern:%s\n", listener.UrlPattern)
 				return
 			}
 		}
 	}()
 }
 
-func (rps *rodParallelService[C, D]) ProcessResponseChan(ctx context.Context, RespChan <-chan []types.NetworkResponse) {
+func (rps *rodParallelService[C, D]) ProcessRespChan(ctx context.Context, listener *param.Listener) {
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer func() {
@@ -130,16 +129,16 @@ func (rps *rodParallelService[C, D]) ProcessResponseChan(ctx context.Context, Re
 		}()
 		for {
 			select {
-			case resps, ok := <-RespChan:
+			case resps, ok := <-listener.RespChan:
 				if !ok {
-					log.Printf("响应通道已关闭")
+					log.Printf("响应通道已关闭,监听UrlPattern:%s\n", listener.UrlPattern)
 					return
 				}
 				for _, resp := range resps {
-					fmt.Printf("收到响应 (URL: %s,Body:%s)\n", resp.URL, resp.Body[:min(len(resp.Body), 500)])
+					fmt.Printf("收到响应 (URL: %s,监听UrlPattern:%s,Body:%s)\n", resp.URL, listener.UrlPattern, resp.Body[:min(len(resp.Body), 500)])
 				}
 			case <-ctx.Done():
-				log.Printf("取消处理响应")
+				log.Printf("取消处理响应,监听UrlPattern:%s\n", listener.UrlPattern)
 				return
 			}
 		}

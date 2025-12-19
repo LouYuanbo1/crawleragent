@@ -17,9 +17,10 @@ import (
 )
 
 type rodPagePoolCrawler struct {
-	browser    *rod.Browser
-	pagePool   rod.Pool[rod.Page]
-	createPage func() (*rod.Page, error)
+	browser       *rod.Browser
+	pagePool      rod.Pool[rod.Page]
+	createPage    func() (*rod.Page, error)
+	browserRouter *rod.HijackRouter
 }
 
 func InitRodPagePoolCrawler(cfg *config.Config, pagePoolSize int) (ParallelCrawler, error) {
@@ -50,19 +51,29 @@ func InitRodPagePoolCrawler(cfg *config.Config, pagePoolSize int) (ParallelCrawl
 		return stealth.Page(browser)
 	}
 
+	// 创建浏览器路由
+	browserRouter := browser.HijackRequests()
+
 	return &rodPagePoolCrawler{
-		browser:    browser,
-		pagePool:   pagePool,
-		createPage: createPage,
+		browser:       browser,
+		pagePool:      pagePool,
+		createPage:    createPage,
+		browserRouter: browserRouter,
 	}, nil
 }
 
 func (rppc *rodPagePoolCrawler) Close() {
+	// 关闭浏览器路由
+	rppc.browserRouter.MustStop()
 	rppc.pagePool.Cleanup(func(p *rod.Page) { p.MustClose() })
 	rppc.browser.MustClose()
 }
 
 func (rppc *rodPagePoolCrawler) PerformOpentionsALL(operations []*param.URLOperation) error {
+
+	// 设置所有网络监听器
+	rppc.setAllNetListener(operations)
+	go rppc.browserRouter.Run()
 
 	operationCh := make(chan *param.URLOperation, len(operations))
 	for _, url := range operations {
@@ -78,54 +89,7 @@ func (rppc *rodPagePoolCrawler) PerformOpentionsALL(operations []*param.URLOpera
 		go func(workerID int) {
 			defer wg.Done()
 			for op := range operationCh {
-				// 使用一个立即执行函数来封装每次操作，这样defer会在每次操作结束时执行
-				func() {
-					page, err := rppc.pagePool.Get(rppc.createPage)
-					if err != nil {
-						errCh <- fmt.Errorf("获取页面失败: %v", err)
-						return
-					}
-					// 确保页面放回池中
-					defer rppc.pagePool.Put(page)
-
-					router := rppc.setPageListener(page, op)
-					go router.Run()
-					// 确保路由停止
-					defer func() {
-						close(op.RespChan)
-						router.Remove(op.UrlPattern)
-					}()
-
-					err = rppc.navigateURL(page, workerID, op.Url)
-					if err != nil {
-						errCh <- fmt.Errorf("处理URL失败: %v", err)
-						return
-					}
-
-					switch op.OperationType {
-					case param.OperationClick:
-						err = rppc.performClick(page, op)
-						if err != nil {
-							errCh <- fmt.Errorf("点击操作失败: %v", err)
-							return
-						}
-					case param.OperationXClick:
-						err = rppc.performXClick(page, op)
-						if err != nil {
-							errCh <- fmt.Errorf("xPath点击操作失败: %v", err)
-							return
-						}
-					case param.OperationScroll:
-						err = rppc.performScrolling(page, op)
-						if err != nil {
-							errCh <- fmt.Errorf("滚动操作失败: %v", err)
-							return
-						}
-					default:
-						errCh <- fmt.Errorf("未知操作类型: %v", op.OperationType)
-						return
-					}
-				}()
+				rppc.processUrlOperation(workerID, errCh, op)
 			}
 		}(i)
 	}
@@ -141,6 +105,51 @@ func (rppc *rodPagePoolCrawler) PerformOpentionsALL(operations []*param.URLOpera
 		return fmt.Errorf("%d errors occurred: %v", len(errs), errs)
 	}
 	return nil
+}
+
+func (rppc *rodPagePoolCrawler) processUrlOperation(workerID int, errCh chan<- error, operation *param.URLOperation) {
+	page, err := rppc.pagePool.Get(rppc.createPage)
+	if err != nil {
+		errCh <- fmt.Errorf("获取页面失败: %v", err)
+		return
+	}
+	// 确保页面放回池中
+	defer func() {
+		rppc.pagePool.Put(page)
+		if operation.Listener != nil {
+			close(operation.Listener.RespChan)
+		}
+	}()
+
+	err = rppc.navigateURL(page, workerID, operation.Url)
+	if err != nil {
+		errCh <- fmt.Errorf("处理URL失败: %v", err)
+		return
+	}
+
+	switch operation.OperationType {
+	case param.OperationClick:
+		err = rppc.performClick(page, operation)
+		if err != nil {
+			errCh <- fmt.Errorf("点击操作失败: %v", err)
+			return
+		}
+	case param.OperationXClick:
+		err = rppc.performXClick(page, operation)
+		if err != nil {
+			errCh <- fmt.Errorf("xPath点击操作失败: %v", err)
+			return
+		}
+	case param.OperationScroll:
+		err = rppc.performScrolling(page, operation)
+		if err != nil {
+			errCh <- fmt.Errorf("滚动操作失败: %v", err)
+			return
+		}
+	default:
+		errCh <- fmt.Errorf("未知操作类型: %v", operation.OperationType)
+		return
+	}
 }
 
 func (rppc *rodPagePoolCrawler) navigateURL(page *rod.Page, workerID int, url string) error {
@@ -255,17 +264,23 @@ func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, operation *para
 	return nil
 }
 
-func (rppc *rodPagePoolCrawler) setPageListener(page *rod.Page, operation *param.URLOperation) *rod.HijackRouter {
-	router := page.HijackRequests()
-	router.MustAdd(operation.UrlPattern, func(hijack *rod.Hijack) {
+func (rppc *rodPagePoolCrawler) setAllNetListener(options []*param.URLOperation) {
+	for _, option := range options {
+		if option.Listener != nil {
+			rppc.setNetListener(option.Listener)
+		}
+	}
+}
+
+func (rppc *rodPagePoolCrawler) setNetListener(listener *param.Listener) {
+	rppc.browserRouter.MustAdd(listener.UrlPattern, func(hijack *rod.Hijack) {
 		hijack.MustLoadResponse()
 		body := hijack.Response.Body()
-		operation.RespChan <- []types.NetworkResponse{
+		listener.RespChan <- []types.NetworkResponse{
 			{
 				URL:  hijack.Request.URL().String(),
 				Body: []byte(body),
 			},
 		}
 	})
-	return router
 }

@@ -11,14 +11,18 @@ const (
 	OperationXClick OperationType = "xclick"
 )
 
-type URLOperation struct {
-	Url                  string        `json:"url"`
-	OperationType        OperationType `json:"operation_type"`
-	Selector             string        `json:"selector"`
-	Times                int           `json:"times"`
-	StandardSleepSeconds int           `json:"standard_sleep_seconds"`
-	RandomDelaySeconds   int           `json:"random_delay_seconds"`
-
+type Listener struct {
 	UrlPattern string                       `json:"url_pattern"`
 	RespChan   chan []types.NetworkResponse `json:"resp_chan"`
+}
+
+type URLOperation struct {
+	Url                  string                       `json:"url"`
+	OperationType        OperationType                `json:"operation_type"`
+	Selector             string                       `json:"selector"`
+	DataChan             chan []types.NetworkResponse `json:"data_chan"`
+	Times                int                          `json:"times"`
+	StandardSleepSeconds int                          `json:"standard_sleep_seconds"`
+	RandomDelaySeconds   int                          `json:"random_delay_seconds"`
+	Listener             *Listener                    `json:"listener"`
 }

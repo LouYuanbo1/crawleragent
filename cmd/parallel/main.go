@@ -81,6 +81,16 @@ func main() {
 	respChanBoss := make(chan []types.NetworkResponse, 100)
 	respChanCnblogs := make(chan []types.NetworkResponse, 100)
 
+	//创建监听器
+	listenerBoss := &param.Listener{
+		UrlPattern: urlPatternBoss,
+		RespChan:   respChanBoss,
+	}
+	listenerCnblogs := &param.Listener{
+		UrlPattern: urlPatternCnBlogs,
+		RespChan:   respChanCnblogs,
+	}
+
 	params := []*param.URLOperation{
 		{
 			Url:           urlBoss,
@@ -95,10 +105,7 @@ func main() {
 			//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
 			RandomDelaySeconds: 1,
 			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
-			//监听的url
-			UrlPattern: urlPatternBoss,
-			//响应通道
-			RespChan: respChanBoss,
+			Listener: listenerBoss,
 		},
 		{
 			Url:           urlCnBlogs,
@@ -112,13 +119,11 @@ func main() {
 			RandomDelaySeconds: 1,
 			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
 			//监听的url
-			UrlPattern: urlPatternCnBlogs,
-			//响应通道
-			RespChan: respChanCnblogs,
+			Listener: listenerCnblogs,
 		},
 	}
 	//开始滚动爬取
-	serviceParallel.ProcessResponseChanWithIndexDocs(ctx, respChanBoss, func(body []byte) ([]*entity.RowBossJobData, error) {
+	serviceParallel.ProcessRespChanWithIndexDocs(ctx, listenerBoss, func(body []byte) ([]*entity.RowBossJobData, error) {
 		var jsonData struct {
 			Code    int    `json:"code"`
 			Message string `json:"message"`
@@ -159,7 +164,7 @@ func main() {
 	},
 	)
 
-	serviceParallel.ProcessResponseChan(ctx, respChanCnblogs)
+	serviceParallel.ProcessRespChan(ctx, listenerCnblogs)
 
 	err = serviceParallel.PerformOpentionsALL(params)
 	if err != nil {
