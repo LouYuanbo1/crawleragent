@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -32,83 +33,8 @@ func InitRodParallelService[C entity.Crawlable[D], D model.Document](
 	}
 }
 
-func (rps *rodParallelService[C, D]) StartRouter() {
-	rps.parallelCrawler.StartRouter()
-}
-
 func (rps *rodParallelService[C, D]) PerformOpentionsALL(options []*param.URLOperation) error {
 	return rps.parallelCrawler.PerformOpentionsALL(options)
-}
-
-func (rps *rodParallelService[C, D]) SetNetworkListenerWithIndexDocs(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error)) {
-	ctx, cancel := context.WithCancel(ctx)
-	RespChan := make(chan []types.NetworkResponse, RespChanSize)
-	rps.parallelCrawler.SetNetworkListener(urlPattern, RespChan)
-	go func() {
-		defer func() {
-			close(RespChan)
-			log.Printf("关闭监听: %s", urlPattern)
-			cancel()
-		}()
-		for {
-			select {
-			case resps, ok := <-RespChan:
-				if !ok {
-					log.Printf("响应通道已关闭: %s", urlPattern)
-					return
-				}
-				for _, resp := range resps {
-					crawlables, err := toCrawlable(resp.Body)
-					if err != nil {
-						log.Printf("处理响应体失败 (URL: %s): %v",
-							resp.URL, err)
-						continue
-					}
-					if len(crawlables) == 0 {
-						continue
-					}
-					docs := make([]D, 0, len(crawlables))
-					for _, crawlable := range crawlables {
-						doc := crawlable.ToDocument()
-						docs = append(docs, doc)
-					}
-					rps.embeddingDocs(docs)
-					rps.indexDocs(docs)
-				}
-			case <-ctx.Done():
-				log.Printf("取消监听: %s", urlPattern)
-				return
-			}
-		}
-	}()
-}
-
-func (rps *rodParallelService[C, D]) SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int) {
-	ctx, cancel := context.WithCancel(ctx)
-	RespChan := make(chan []types.NetworkResponse, RespChanSize)
-	rps.parallelCrawler.SetNetworkListener(urlPattern, RespChan)
-	go func() {
-		defer func() {
-			close(RespChan)
-			log.Printf("关闭监听: %s", urlPattern)
-			cancel()
-		}()
-		for {
-			select {
-			case resps, ok := <-RespChan:
-				if !ok {
-					log.Printf("响应通道已关闭: %s", urlPattern)
-					return
-				}
-				for _, resp := range resps {
-					log.Printf("收到响应 (URL: %s,Body:%s)", resp.URL, resp.Body[:500])
-				}
-			case <-ctx.Done():
-				log.Printf("取消监听: %s", urlPattern)
-				return
-			}
-		}
-	}()
 }
 
 func (rps *rodParallelService[C, D]) embeddingDocs(docs []D) {
@@ -155,4 +81,67 @@ func (rps *rodParallelService[C, D]) indexDocs(docs []D) {
 		log.Printf("Bulk index error: %v", err)
 		return
 	}
+}
+
+func (rps *rodParallelService[C, D]) ProcessResponseChanWithIndexDocs(ctx context.Context, RespChan <-chan []types.NetworkResponse, toCrawlable func(body []byte) ([]C, error)) {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		defer func() {
+			cancel()
+		}()
+		for {
+			select {
+			case resps, ok := <-RespChan:
+				if !ok {
+					log.Printf("响应通道已关闭")
+					return
+				}
+				for _, resp := range resps {
+					crawlables, err := toCrawlable(resp.Body)
+					if err != nil {
+						log.Printf("处理响应体失败 (URL: %s): %v",
+							resp.URL, err)
+						continue
+					}
+					if len(crawlables) == 0 {
+						continue
+					}
+					docs := make([]D, 0, len(crawlables))
+					for _, crawlable := range crawlables {
+						doc := crawlable.ToDocument()
+						docs = append(docs, doc)
+					}
+					rps.embeddingDocs(docs)
+					rps.indexDocs(docs)
+				}
+			case <-ctx.Done():
+				log.Printf("取消处理响应")
+				return
+			}
+		}
+	}()
+}
+
+func (rps *rodParallelService[C, D]) ProcessResponseChan(ctx context.Context, RespChan <-chan []types.NetworkResponse) {
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		defer func() {
+			cancel()
+		}()
+		for {
+			select {
+			case resps, ok := <-RespChan:
+				if !ok {
+					log.Printf("响应通道已关闭")
+					return
+				}
+				for _, resp := range resps {
+					fmt.Printf("收到响应 (URL: %s,Body:%s)\n", resp.URL, resp.Body[:min(len(resp.Body), 500)])
+				}
+			case <-ctx.Done():
+				log.Printf("取消处理响应")
+				return
+			}
+		}
+	}()
 }
