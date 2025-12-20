@@ -32,8 +32,8 @@ func InitRodParallelService[C entity.Crawlable[D], D model.Document](
 	}
 }
 
-func (rps *rodParallelService[C, D]) PerformAllListnerOperations(options []*param.ListenerOperation) error {
-	return rps.parallelCrawler.PerformAllListnerOperations(options)
+func (rps *rodParallelService[C, D]) PerformAllUrlOperations(ctx context.Context, options []*param.UrlOperation) error {
+	return rps.parallelCrawler.PerformAllUrlOperations(ctx, options)
 }
 
 func (rps *rodParallelService[C, D]) embeddingDocs(docs []D) {

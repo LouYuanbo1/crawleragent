@@ -91,7 +91,7 @@ func main() {
 		RespChan:   respChanCnblogs,
 	}
 
-	params := []*param.ListenerOperation{
+	params := []*param.UrlOperation{
 		{
 			Url:           urlBoss,
 			OperationType: param.OperationScroll,
@@ -166,7 +166,7 @@ func main() {
 
 	serviceParallel.ProcessRespChan(ctx, listenerCnblogs)
 
-	err = serviceParallel.PerformAllListnerOperations(params)
+	err = serviceParallel.PerformAllUrlOperations(ctx, params)
 	if err != nil {
 		log.Fatalf("滚动策略失败: %v", err)
 	}
