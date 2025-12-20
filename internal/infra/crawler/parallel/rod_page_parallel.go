@@ -189,7 +189,7 @@ func (rppc *rodPagePoolCrawler) navigateURL(page *rod.Page, workerID int, url st
 
 	page.MustWaitStable()
 	time.Sleep(2 * time.Second)
-	time.Sleep(120 * time.Second)
+	//time.Sleep(120 * time.Second)
 
 	return nil
 }
