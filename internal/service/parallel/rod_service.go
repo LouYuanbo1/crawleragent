@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -92,6 +91,7 @@ func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Co
 					return
 				}
 				for _, resp := range resps {
+					log.Printf("收到响应 (URL: %s,监听UrlPattern: %s,Length Body: %d)\n", resp.URL, listener.UrlPattern, len(resp.Body))
 					crawlables, err := toCrawlable(resp.Body)
 					if err != nil {
 						log.Printf("处理响应体失败 (URL: %s,监听UrlPattern:%s): %v\n",
@@ -127,7 +127,7 @@ func (rps *rodParallelService[C, D]) ProcessRespChan(ctx context.Context, listen
 					return
 				}
 				for _, resp := range resps {
-					fmt.Printf("收到响应 (URL: %s,监听UrlPattern:%s,Body:%s)\n", resp.URL, listener.UrlPattern, resp.Body[:min(len(resp.Body), 200)])
+					log.Printf("收到响应 (URL: %s,监听UrlPattern: %s,Length Body: %d)\n", resp.URL, listener.UrlPattern, len(resp.Body))
 				}
 			case <-ctx.Done():
 				log.Printf("取消处理响应,监听UrlPattern:%s\n", listener.UrlPattern)

@@ -29,12 +29,15 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 	for instanceID := range browserPoolSize {
 
 		instanceDataDir := fmt.Sprintf("%s/instance_%d", cfg.Rod.UserDataDir, instanceID)
-		os.MkdirAll(instanceDataDir, 0755)
+		err := os.MkdirAll(instanceDataDir, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("创建实例数据目录失败: %v", err)
+		}
 
 		port := cfg.Rod.BasicRemoteDebuggingPort + instanceID
 		url := options.CreateLauncher(cfg.Rod.UserMode,
 			options.WithBin(cfg.Rod.Bin),
-			//options.WithUserDataDir(cfg.Rod.UserDataDir),
+			options.WithUserDataDir(instanceDataDir),
 			options.WithHeadless(cfg.Rod.Headless),
 			options.WithDisableBlinkFeatures(cfg.Rod.DisableBlinkFeatures),
 			options.WithIncognito(cfg.Rod.Incognito),
@@ -80,8 +83,6 @@ func (rppc *rodBrowserPoolCrawler) Close() {
 }
 
 func (rppc *rodBrowserPoolCrawler) PerformAllUrlOperations(ctx context.Context, operations []*param.UrlOperation) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	// 过滤无效操作
 	validOperations := rppc.operationsChecker(operations)
 
@@ -144,9 +145,13 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 		errCh <- fmt.Errorf("获取浏览器失败: %v", err)
 		return
 	}
+
 	// 设置所有网络监听器
 	router := rppc.setNetListener(browser, operation.Listener)
-	go router.Run()
+	go func() {
+		router.Run()
+		log.Printf("Worker %d 路由器停止运行", workerID)
+	}()
 
 	page, err := browser.Page(proto.TargetCreateTarget{})
 	if err != nil {
@@ -155,10 +160,13 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 	}
 	// 确保页面放回池中
 	defer func() {
-		log.Printf("将 browser %d 返回池", workerID)
+		page.MustClose()
+		log.Printf("将 browser %d 返回池，处理的URL模式: %s", workerID, operation.Listener.UrlPattern)
 		rppc.browserPool.Put(browser)
-		log.Printf("关闭%s监听管道", operation.Listener.UrlPattern)
-		close(operation.Listener.RespChan)
+		if operation.Listener != nil {
+			log.Printf("关闭 %s 监听管道", operation.Listener.UrlPattern)
+			close(operation.Listener.RespChan)
+		}
 	}()
 
 	err = rppc.navigateURL(page, workerID, operation.Url)
@@ -259,10 +267,10 @@ func (rppc *rodBrowserPoolCrawler) performXClick(page *rod.Page, operation *para
 
 func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *param.UrlOperation) error {
 	fmt.Println("开始执行滚动任务...")
-	/*
-		randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
-		totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
-	*/
+
+	randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
+	totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
+
 	for i := range operation.NumActions {
 
 		//page.MustActivate()
@@ -277,13 +285,23 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 		totalHeight := height.Value.Int()
 		currentScroll := float64(totalHeight) * (0.7 + rand.Float64()*0.25)
 
-		// 使用 Rod 的 API 滚动
-		err = page.Mouse.Scroll(0, currentScroll, 1)
+		_, err = page.Eval(fmt.Sprintf(`() => {
+            window.scrollTo({
+                top: %f,
+                behavior: 'smooth'
+            });
+        }`, currentScroll))
 		if err != nil {
-			for range 3 {
-				err = page.KeyActions().Press(input.AddKey("PageDown", "", "PageDown", 34, 0)).Do()
-				if err != nil {
-					return fmt.Errorf("执行 PageDown 失败: %v", err)
+			log.Printf("执行Js滚动失败: %v", err)
+			// 使用 Rod 的 API 滚动
+			err = page.Mouse.Scroll(0, currentScroll, 1)
+			if err != nil {
+				log.Printf("执行鼠标滚动失败: %v", err)
+				for range 3 {
+					err = page.KeyActions().Press(input.AddKey("PageDown", "", "PageDown", 34, 0)).Do()
+					if err != nil {
+						return fmt.Errorf("执行 PageDown 失败: %v", err)
+					}
 				}
 			}
 		}
@@ -291,7 +309,7 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
 		page.MustWaitStable()
 
-		//time.Sleep(totalSleep)
+		time.Sleep(totalSleep)
 
 	}
 
@@ -304,6 +322,10 @@ func (rppc *rodBrowserPoolCrawler) setNetListener(browser *rod.Browser, listener
 	router.MustAdd(listener.UrlPattern, func(hijack *rod.Hijack) {
 		hijack.MustLoadResponse()
 		body := hijack.Response.Body()
+		/*
+			log.Printf("监听到请求: %s, 响应大小: %d bytes",
+				hijack.Request.URL().String(), len(body))
+		*/
 		listener.RespChan <- []types.NetworkResponse{
 			{
 				URL:  hijack.Request.URL().String(),
