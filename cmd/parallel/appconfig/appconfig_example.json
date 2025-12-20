@@ -6,7 +6,7 @@
     },
     "rod": {
         "user_data_dir": "path_where_you_want_to_save_chrome_data",
-        "user_mode": true,
+        "user_mode": false,
         "headless": false,
         "disable_blink_features": "AutomationControlled",
         "incognito": false,
@@ -18,7 +18,10 @@
         "leakless": true,
         "bin":"your_chrome_bin_path",
         "disable_background_networking": false,
-        "disable-background-timer-throttling": true
+        "disable-background-timer-throttling": true,
+        "disable-backgrounding-occluded-windows": true,
+        "disable-renderer-backgrounding": true,
+        "basic_remote_debugging_port": 9222
     },
     "embedder": {
         "host": "http://localhost",

@@ -131,3 +131,14 @@ func WithDisableRendererBackgrounding(disable bool) LauncherOption {
 		}
 	}
 }
+
+func WithRemoteDebuggingPort(port int) LauncherOption {
+	return func(l *launcher.Launcher) {
+		if port > 0 {
+			l.RemoteDebuggingPort(port)
+		}
+		if port == 0 {
+			l.RemoteDebuggingPort(0)
+		}
+	}
+}

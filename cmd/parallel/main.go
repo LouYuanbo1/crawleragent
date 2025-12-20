@@ -63,7 +63,13 @@ func main() {
 	esJobClient.CreateIndexWithMapping(ctx)
 
 	//初始化Rod爬虫
-	parallelCrawler, err := parallel.InitRodPagePoolCrawler(appcfg, 3)
+	/*
+		parallelCrawler, err := parallel.InitRodPagePoolCrawler(appcfg, 3)
+		if err != nil {
+			log.Fatalf("初始化RodCrawler失败: %v", err)
+		}
+	*/
+	parallelCrawler, err := parallel.InitRodBrowserPoolCrawler(appcfg, 3)
 	if err != nil {
 		log.Fatalf("初始化RodCrawler失败: %v", err)
 	}
