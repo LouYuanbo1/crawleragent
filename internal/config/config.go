@@ -26,6 +26,10 @@ type Config struct {
 		DisableBackgroundNetworking bool `json:"disable_background_networking"`
 		//(禁用后台网络) 设为false
 		DisableBackgroundTimerThrottling bool `json:"disable-background-timer-throttling"`
+		//(禁用后台窗口遮挡)
+		DisableBackgroundingOccludedWindows bool `json:"disable-backgrounding-occluded-windows"`
+		//(禁用渲染器后台)
+		DisableRendererBackgrounding bool `json:"disable-renderer-backgrounding"`
 	} `json:"rod"`
 
 	Chromedp struct {
