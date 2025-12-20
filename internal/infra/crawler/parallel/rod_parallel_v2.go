@@ -16,6 +16,7 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/stealth"
 )
 
 type rodBrowserPoolCrawler struct {
@@ -64,7 +65,8 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 	createBrowser := func() (*rod.Browser, error) {
 		urlStr := <-controlURLCh // 不关闭通道，读取后再放回去
 		// 替换 MustConnect 为 Connect，返回 error 而非 panic
-		browser := rod.New().ControlURL(urlStr)
+		browser := rod.New().ControlURL(urlStr).
+			Trace(true) // 开启 CDP 通信追踪（日志会输出请求/响应）
 		if err := browser.Connect(); err != nil {
 			return nil, fmt.Errorf("连接浏览器失败: %v", err)
 		}
@@ -153,7 +155,7 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 		log.Printf("Worker %d 路由器停止运行", workerID)
 	}()
 
-	page, err := browser.Page(proto.TargetCreateTarget{})
+	page, err := stealth.Page(browser)
 	if err != nil {
 		errCh <- fmt.Errorf("获取页面失败: %v", err)
 		return
@@ -176,7 +178,6 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 	}
 
 	//time.Sleep(120 * time.Second)
-
 	switch operation.OperationType {
 	case param.OperationClick:
 		err = rppc.performClick(page, operation)
@@ -233,8 +234,16 @@ func (rppc *rodBrowserPoolCrawler) performClick(page *rod.Page, operation *param
 		if err != nil {
 			return fmt.Errorf("点击失败: %v", err)
 		}
+
 		// 等待页面稳定
-		page.MustWaitStable()
+		/*
+			err = page.WaitStable(500 * time.Millisecond)
+			if err != nil {
+				return fmt.Errorf("等待页面稳定失败: %v", err)
+			}
+		*/
+		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
+
 		time.Sleep(totalSleep)
 	}
 
@@ -257,8 +266,16 @@ func (rppc *rodBrowserPoolCrawler) performXClick(page *rod.Page, operation *para
 		if err != nil {
 			return fmt.Errorf("点击失败: %v", err)
 		}
+
 		// 等待页面稳定
-		page.MustWaitStable()
+		/*
+			err = page.WaitStable(500 * time.Millisecond)
+			if err != nil {
+				return fmt.Errorf("等待页面稳定失败: %v", err)
+			}
+		*/
+		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
+
 		time.Sleep(totalSleep)
 	}
 
@@ -273,8 +290,10 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 
 	for i := range operation.NumActions {
 
-		//page.MustActivate()
-
+		_, _ = page.Eval(`() => {
+			Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+			Object.defineProperty(window, 'chrome', {value: {runtime: {}}});
+		}`)
 		// 获取页面高度
 		height, err := page.Eval(`() => document.body.scrollHeight`)
 		if err != nil {
@@ -307,7 +326,13 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 		}
 
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
-		page.MustWaitStable()
+		/*
+			err = page.WaitStable(500 * time.Millisecond)
+			if err != nil {
+				return fmt.Errorf("等待页面稳定失败: %v", err)
+			}
+		*/
+		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
 
