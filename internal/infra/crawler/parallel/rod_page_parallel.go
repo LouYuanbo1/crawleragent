@@ -189,6 +189,7 @@ func (rppc *rodPagePoolCrawler) navigateURL(page *rod.Page, workerID int, url st
 
 	page.MustWaitStable()
 	time.Sleep(2 * time.Second)
+	time.Sleep(120 * time.Second)
 
 	return nil
 }
@@ -210,7 +211,7 @@ func (rppc *rodPagePoolCrawler) performClick(page *rod.Page, operation *param.Ur
 			return fmt.Errorf("点击失败: %v", err)
 		}
 		// 等待页面稳定
-		page.MustWaitStable()
+		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 		time.Sleep(totalSleep)
 	}
 
@@ -234,7 +235,7 @@ func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, operation *param.U
 			return fmt.Errorf("点击失败: %v", err)
 		}
 		// 等待页面稳定
-		page.MustWaitStable()
+		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 		time.Sleep(totalSleep)
 	}
 
@@ -243,10 +244,10 @@ func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, operation *param.U
 
 func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, operation *param.UrlOperation) error {
 	fmt.Println("开始执行滚动任务...")
-	/*
-		randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
-		totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
-	*/
+
+	randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
+	totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
+
 	for i := range operation.NumActions {
 
 		page.MustActivate()
@@ -273,9 +274,10 @@ func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, operation *para
 		}
 
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
-		page.MustWaitStable()
 
-		//time.Sleep(totalSleep)
+		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
+
+		time.Sleep(totalSleep)
 
 	}
 
