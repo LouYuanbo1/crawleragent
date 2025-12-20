@@ -1,6 +1,7 @@
 package parallel
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -70,8 +71,9 @@ func (rppc *rodPagePoolCrawler) Close() {
 	rppc.browser.MustClose()
 }
 
-func (rppc *rodPagePoolCrawler) PerformAllListnerOperations(operations []*param.ListenerOperation) error {
-
+func (rppc *rodPagePoolCrawler) PerformAllUrlOperations(ctx context.Context, operations []*param.UrlOperation) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	// 过滤无效操作
 	validOperations := rppc.operationsChecker(operations)
 
@@ -79,7 +81,7 @@ func (rppc *rodPagePoolCrawler) PerformAllListnerOperations(operations []*param.
 	rppc.setAllNetListener(validOperations)
 	go rppc.browserRouter.Run()
 
-	operationCh := make(chan *param.ListenerOperation, len(validOperations))
+	operationCh := make(chan *param.UrlOperation, len(validOperations))
 	for _, op := range validOperations {
 		operationCh <- op
 	}
@@ -90,12 +92,21 @@ func (rppc *rodPagePoolCrawler) PerformAllListnerOperations(operations []*param.
 	wg := sync.WaitGroup{}
 	for i := range min(len(rppc.pagePool), len(validOperations)) {
 		wg.Add(1)
-		go func(workerID int) {
+		go func(ctx context.Context, workerID int) {
 			defer wg.Done()
-			for op := range operationCh {
-				rppc.processUrlOperation(workerID, errCh, op)
+			for {
+				select {
+				case <-ctx.Done(): // 主动监听 ctx 取消
+					log.Printf("worker %d 取消执行，退出", workerID)
+					return
+				case op, ok := <-operationCh: // 读取任务
+					if !ok { // 通道关闭则退出
+						return
+					}
+					rppc.processUrlOperation(workerID, errCh, op)
+				}
 			}
-		}(i)
+		}(ctx, i)
 	}
 	wg.Wait()
 
@@ -111,8 +122,8 @@ func (rppc *rodPagePoolCrawler) PerformAllListnerOperations(operations []*param.
 	return nil
 }
 
-func (rppc *rodPagePoolCrawler) operationsChecker(operations []*param.ListenerOperation) []*param.ListenerOperation {
-	validOperations := make([]*param.ListenerOperation, 0, len(operations))
+func (rppc *rodPagePoolCrawler) operationsChecker(operations []*param.UrlOperation) []*param.UrlOperation {
+	validOperations := make([]*param.UrlOperation, 0, len(operations))
 	for _, op := range operations {
 		if op.IsValid() {
 			validOperations = append(validOperations, op)
@@ -123,7 +134,8 @@ func (rppc *rodPagePoolCrawler) operationsChecker(operations []*param.ListenerOp
 	return validOperations
 }
 
-func (rppc *rodPagePoolCrawler) processUrlOperation(workerID int, errCh chan<- error, operation *param.ListenerOperation) {
+func (rppc *rodPagePoolCrawler) processUrlOperation(workerID int, errCh chan<- error, operation *param.UrlOperation) {
+
 	page, err := rppc.pagePool.Get(rppc.createPage)
 	if err != nil {
 		errCh <- fmt.Errorf("获取页面失败: %v", err)
@@ -181,7 +193,7 @@ func (rppc *rodPagePoolCrawler) navigateURL(page *rod.Page, workerID int, url st
 	return nil
 }
 
-func (rppc *rodPagePoolCrawler) performClick(page *rod.Page, operation *param.ListenerOperation) error {
+func (rppc *rodPagePoolCrawler) performClick(page *rod.Page, operation *param.UrlOperation) error {
 	randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
 	totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
 
@@ -205,7 +217,7 @@ func (rppc *rodPagePoolCrawler) performClick(page *rod.Page, operation *param.Li
 	return nil
 }
 
-func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, operation *param.ListenerOperation) error {
+func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, operation *param.UrlOperation) error {
 	randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
 	totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
 
@@ -229,7 +241,7 @@ func (rppc *rodPagePoolCrawler) performXClick(page *rod.Page, operation *param.L
 	return nil
 }
 
-func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, operation *param.ListenerOperation) error {
+func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, operation *param.UrlOperation) error {
 	fmt.Println("开始执行滚动任务...")
 	/*
 		randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
@@ -271,7 +283,7 @@ func (rppc *rodPagePoolCrawler) performScrolling(page *rod.Page, operation *para
 	return nil
 }
 
-func (rppc *rodPagePoolCrawler) setAllNetListener(options []*param.ListenerOperation) {
+func (rppc *rodPagePoolCrawler) setAllNetListener(options []*param.UrlOperation) {
 	for _, option := range options {
 		rppc.setNetListener(option.Listener)
 	}

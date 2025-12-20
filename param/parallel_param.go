@@ -16,22 +16,23 @@ type ListenerConfig struct {
 	RespChan   chan []types.NetworkResponse `json:"resp_chan"`
 }
 
-type ListenerOperation struct {
-	Url                  string          `json:"url"`
-	OperationType        OperationType   `json:"operation_type"`
-	Selector             string          `json:"selector"`
-	NumActions           int             `json:"num_actions"`
-	StandardSleepSeconds int             `json:"standard_sleep_seconds"`
-	RandomDelaySeconds   int             `json:"random_delay_seconds"`
-	Listener             *ListenerConfig `json:"listener"`
+type UrlOperation struct {
+	Url                  string              `json:"url"`
+	OperationType        OperationType       `json:"operation_type"`
+	NumActions           int                 `json:"num_actions"`
+	StandardSleepSeconds int                 `json:"standard_sleep_seconds"`
+	RandomDelaySeconds   int                 `json:"random_delay_seconds"`
+	Selector             string              `json:"selector"`
+	DataChan             chan types.DataChan `json:"data_chan"`
+	Listener             *ListenerConfig     `json:"listener"`
 }
 
-func (lo *ListenerOperation) IsValid() bool {
-	switch lo.OperationType {
+func (uo *UrlOperation) IsValid() bool {
+	switch uo.OperationType {
 	case OperationScroll:
-		return lo.Listener != nil
+		return uo.Listener != nil
 	case OperationClick, OperationXClick:
-		return lo.Listener != nil && lo.Selector != ""
+		return uo.Listener != nil && uo.Selector != ""
 	default:
 		return false
 	}
