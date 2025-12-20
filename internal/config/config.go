@@ -30,6 +30,8 @@ type Config struct {
 		DisableBackgroundingOccludedWindows bool `json:"disable-backgrounding-occluded-windows"`
 		//(禁用渲染器后台)
 		DisableRendererBackgrounding bool `json:"disable-renderer-backgrounding"`
+		//(远程调试端口)
+		BasicRemoteDebuggingPort int `json:"basic_remote_debugging_port"`
 	} `json:"rod"`
 
 	Chromedp struct {
