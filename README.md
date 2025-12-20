@@ -27,7 +27,9 @@ crawleragent/
 │   ├── agent/           # AI智能体入口
 │   ├── chromedp/        # Chromedp爬虫入口
 │   ├── colly/           # Colly爬虫入口
-|   └── rod/             # Rod爬虫入口
+|   ├── rod/             # Rod爬虫入口
+|   ├── pageparallel/    # Rod页面并行爬虫入口(同一个浏览器中多个页面并行爬取,效果不佳,当页面进入后台时可能不会加载网络数据)
+|   └── browserparallel/ # Rod浏览器并行爬虫入口（多个浏览器并行爬取,多个浏览器隔离,效果好）
 ├── internal/            # 内部包
 │   ├── config/          # 配置管理
 │   ├── domain/          # 领域模型
@@ -42,7 +44,7 @@ crawleragent/
 │       ├── agent/       # 智能体服务
 |       ├── chromedp/    # Chromedp爬虫服务
 |       ├── colly/       # Colly爬虫服务
-│       └── combine/     # 混合爬虫服务
+│       └── parallel/     # 并行爬虫服务
 ├── go.mod               # Go模块定义
 └── go.sum               # 依赖校验和
 ```
@@ -83,7 +85,7 @@ crawleragent/
     - 基于Eino工作流编排框架
     1. 支持两种模式：
         - 搜索模式：使用Elasticsearch知识库回答问题
-        - 聊天模式：直接使用LLM回答问题
+        - 聊天模式：直接使用LLM回答问题,新增DuckDuckGo搜索功能
 
     2. 支持流式输出
 
