@@ -115,3 +115,19 @@ func WithDisableBackgroundTimerThrottling(disable bool) LauncherOption {
 		}
 	}
 }
+
+func WithDisableBackgroundingOccludedWindows(disable bool) LauncherOption {
+	return func(l *launcher.Launcher) {
+		if disable {
+			l.Set("disable-backgrounding-occluded-windows")
+		}
+	}
+}
+
+func WithDisableRendererBackgrounding(disable bool) LauncherOption {
+	return func(l *launcher.Launcher) {
+		if disable {
+			l.Set("disable-renderer-backgrounding")
+		}
+	}
+}

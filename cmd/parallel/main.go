@@ -36,6 +36,8 @@ var (
 	urlCnBlogs        = "https://www.cnblogs.com/"
 	urlPatternCnBlogs = "https://www.cnblogs.com/AggSite/AggSitePostList*"
 	selectorCnBlogs   = `//a[starts-with(@href, "/sitehome/p/") and text()=">"]`
+	//urlBili           = "https://www.bilibili.com/"
+	//urlPatternBili    = "https://api.bilibili.com/x/web-interface/wbi/index/top/feed/rcmd*"
 )
 
 func main() {
@@ -66,7 +68,7 @@ func main() {
 		log.Fatalf("初始化RodCrawler失败: %v", err)
 	}
 
-	defer parallelCrawler.Close()
+	//defer parallelCrawler.Close()
 
 	//初始化Embedding模型
 	embedder, err := embedding.InitEmbedder(ctx, appcfg, 1)
@@ -80,6 +82,7 @@ func main() {
 
 	respChanBoss := make(chan []types.NetworkResponse, 100)
 	respChanCnblogs := make(chan []types.NetworkResponse, 100)
+	//respChanBili := make(chan []types.NetworkResponse, 100)
 
 	//创建监听器
 	listenerBoss := &param.ListenerConfig{
@@ -90,6 +93,13 @@ func main() {
 		UrlPattern: urlPatternCnBlogs,
 		RespChan:   respChanCnblogs,
 	}
+
+	/*
+		listenerBili := &param.ListenerConfig{
+			UrlPattern: urlPatternBili,
+			RespChan:   respChanBili,
+		}
+	*/
 
 	params := []*param.UrlOperation{
 		{
@@ -121,6 +131,23 @@ func main() {
 			//监听的url
 			Listener: listenerCnblogs,
 		},
+		/*
+			{
+				Url:           urlBili,
+				OperationType: param.OperationScroll,
+				//每轮滚动爬取的次数
+				//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
+				NumActions: 5,
+				//标准 sleep 时间(秒)
+				//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
+				StandardSleepSeconds: 1,
+				//随机延迟时间(秒)
+				//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
+				RandomDelaySeconds: 1,
+				//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
+				Listener: listenerBili,
+			},
+		*/
 	}
 	//开始滚动爬取
 	serviceParallel.ProcessRespChanWithIndexDocs(ctx, listenerBoss, func(body []byte) ([]*entity.RowBossJobData, error) {
@@ -166,10 +193,14 @@ func main() {
 
 	serviceParallel.ProcessRespChan(ctx, listenerCnblogs)
 
+	//serviceParallel.ProcessRespChan(ctx, listenerBili)
+
 	err = serviceParallel.PerformAllUrlOperations(ctx, params)
 	if err != nil {
 		log.Fatalf("滚动策略失败: %v", err)
 	}
+
+	parallelCrawler.Close()
 
 	count, err := esJobClient.CountDocs(ctx)
 	if err != nil {

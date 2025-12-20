@@ -83,11 +83,7 @@ func (rps *rodParallelService[C, D]) indexDocs(docs []D) {
 }
 
 func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Context, listener *param.ListenerConfig, toCrawlable func(body []byte) ([]C, error)) {
-	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		defer func() {
-			cancel()
-		}()
 		for {
 			select {
 			case resps, ok := <-listener.RespChan:
@@ -122,11 +118,7 @@ func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Co
 }
 
 func (rps *rodParallelService[C, D]) ProcessRespChan(ctx context.Context, listener *param.ListenerConfig) {
-	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		defer func() {
-			cancel()
-		}()
 		for {
 			select {
 			case resps, ok := <-listener.RespChan:
@@ -135,7 +127,7 @@ func (rps *rodParallelService[C, D]) ProcessRespChan(ctx context.Context, listen
 					return
 				}
 				for _, resp := range resps {
-					fmt.Printf("收到响应 (URL: %s,监听UrlPattern:%s,Body:%s)\n", resp.URL, listener.UrlPattern, resp.Body[:min(len(resp.Body), 500)])
+					fmt.Printf("收到响应 (URL: %s,监听UrlPattern:%s,Body:%s)\n", resp.URL, listener.UrlPattern, resp.Body[:min(len(resp.Body), 200)])
 				}
 			case <-ctx.Done():
 				log.Printf("取消处理响应,监听UrlPattern:%s\n", listener.UrlPattern)
