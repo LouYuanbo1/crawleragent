@@ -32,8 +32,8 @@ func InitRodParallelService[C entity.Crawlable[D], D model.Document](
 	}
 }
 
-func (rps *rodParallelService[C, D]) PerformOpentionsALL(options []*param.URLOperation) error {
-	return rps.parallelCrawler.PerformOpentionsALL(options)
+func (rps *rodParallelService[C, D]) PerformAllListnerOperations(options []*param.ListenerOperation) error {
+	return rps.parallelCrawler.PerformAllListnerOperations(options)
 }
 
 func (rps *rodParallelService[C, D]) embeddingDocs(docs []D) {
@@ -82,7 +82,7 @@ func (rps *rodParallelService[C, D]) indexDocs(docs []D) {
 	}
 }
 
-func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Context, listener *param.Listener, toCrawlable func(body []byte) ([]C, error)) {
+func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Context, listener *param.ListenerConfig, toCrawlable func(body []byte) ([]C, error)) {
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer func() {
@@ -121,7 +121,7 @@ func (rps *rodParallelService[C, D]) ProcessRespChanWithIndexDocs(ctx context.Co
 	}()
 }
 
-func (rps *rodParallelService[C, D]) ProcessRespChan(ctx context.Context, listener *param.Listener) {
+func (rps *rodParallelService[C, D]) ProcessRespChan(ctx context.Context, listener *param.ListenerConfig) {
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer func() {

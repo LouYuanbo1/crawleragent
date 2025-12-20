@@ -6,5 +6,5 @@ import (
 
 type ParallelCrawler interface {
 	Close()
-	PerformOpentionsALL(options []*param.URLOperation) error
+	PerformAllListnerOperations(options []*param.ListenerOperation) error
 }

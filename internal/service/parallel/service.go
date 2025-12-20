@@ -9,7 +9,7 @@ import (
 )
 
 type ParallelService[C entity.Crawlable[D], D model.Document] interface {
-	PerformOpentionsALL(options []*param.URLOperation) error
-	ProcessRespChan(ctx context.Context, listener *param.Listener)
-	ProcessRespChanWithIndexDocs(ctx context.Context, listener *param.Listener, toCrawlable func(body []byte) ([]C, error))
+	PerformAllListnerOperations(options []*param.ListenerOperation) error
+	ProcessRespChan(ctx context.Context, listener *param.ListenerConfig)
+	ProcessRespChanWithIndexDocs(ctx context.Context, listener *param.ListenerConfig, toCrawlable func(body []byte) ([]C, error))
 }

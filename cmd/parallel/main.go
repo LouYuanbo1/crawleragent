@@ -82,22 +82,22 @@ func main() {
 	respChanCnblogs := make(chan []types.NetworkResponse, 100)
 
 	//创建监听器
-	listenerBoss := &param.Listener{
+	listenerBoss := &param.ListenerConfig{
 		UrlPattern: urlPatternBoss,
 		RespChan:   respChanBoss,
 	}
-	listenerCnblogs := &param.Listener{
+	listenerCnblogs := &param.ListenerConfig{
 		UrlPattern: urlPatternCnBlogs,
 		RespChan:   respChanCnblogs,
 	}
 
-	params := []*param.URLOperation{
+	params := []*param.ListenerOperation{
 		{
 			Url:           urlBoss,
 			OperationType: param.OperationScroll,
 			//每轮滚动爬取的次数
 			//这里设置为5,表示每轮滚动爬取5次,你可以根据需要调整
-			Times: 5,
+			NumActions: 5,
 			//标准 sleep 时间(秒)
 			//这里设置为1秒,表示每次滚动爬取后,基础等待时间为1秒
 			StandardSleepSeconds: 1,
@@ -112,7 +112,7 @@ func main() {
 			OperationType: param.OperationXClick,
 			Selector:      selectorCnBlogs,
 			//点击次数
-			Times: 5,
+			NumActions: 5,
 			//标准 sleep 时间(秒)
 			StandardSleepSeconds: 1,
 			//随机延迟时间(秒)
@@ -166,7 +166,7 @@ func main() {
 
 	serviceParallel.ProcessRespChan(ctx, listenerCnblogs)
 
-	err = serviceParallel.PerformOpentionsALL(params)
+	err = serviceParallel.PerformAllListnerOperations(params)
 	if err != nil {
 		log.Fatalf("滚动策略失败: %v", err)
 	}
