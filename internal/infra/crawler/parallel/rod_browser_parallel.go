@@ -23,6 +23,7 @@ type rodBrowserPoolCrawler struct {
 	browserPool       rod.Pool[rod.Browser]
 	createBrowser     func() (*rod.Browser, error)
 	controlURLCh      chan string
+	broswerRouters    []*rod.HijackRouter
 	networkResponseCh []chan []types.NetworkResponse
 }
 
@@ -64,8 +65,7 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 	BrowserPool := rod.NewBrowserPool(browserPoolSize)
 
 	createBrowser := func() (*rod.Browser, error) {
-		urlStr := <-controlURLCh // 不关闭通道，读取后再放回去
-		// 替换 MustConnect 为 Connect，返回 error 而非 panic
+		urlStr := <-controlURLCh
 		browser := rod.
 			New().
 			ControlURL(urlStr).
@@ -87,10 +87,17 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 }
 
 func (rppc *rodBrowserPoolCrawler) Close() {
-	log.Printf("关闭 %d 个浏览器连接和 %d 个监听管道", len(rppc.browserPool), len(rppc.networkResponseCh))
+	// 关闭所有路由器
+	log.Printf("关闭 %d 个路由器", len(rppc.broswerRouters))
+	for _, router := range rppc.broswerRouters {
+		router.Stop()
+	}
+	// 关闭所有监听管道
+	log.Printf("关闭 %d 个监听管道", len(rppc.networkResponseCh))
 	for _, ch := range rppc.networkResponseCh {
 		close(ch)
 	}
+	log.Printf("关闭 %d 个浏览器连接", len(rppc.browserPool))
 	rppc.browserPool.Cleanup(func(b *rod.Browser) { b.MustClose() })
 }
 
@@ -182,12 +189,6 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 		page.MustClose()
 		log.Printf("将 browser %d 返回池，处理的URL模式: %s", workerID, operation.Listener.UrlPattern)
 		rppc.browserPool.Put(browser)
-		/*
-			if operation.Listener != nil {
-				log.Printf("关闭 %s 监听管道", operation.Listener.UrlPattern)
-				close(operation.Listener.RespChan)
-			}
-		*/
 	}()
 
 	err = rppc.navigateURL(page, workerID, operation.Url)
@@ -247,20 +248,11 @@ func (rppc *rodBrowserPoolCrawler) performClick(page *rod.Page, operation *param
 	}
 	for range operation.NumActions {
 
-		//page.MustActivate()
-
 		err = element.Click(proto.InputMouseButtonLeft, 1)
 		if err != nil {
 			return fmt.Errorf("点击失败: %v", err)
 		}
 
-		// 等待页面稳定
-		/*
-			err = page.WaitStable(500 * time.Millisecond)
-			if err != nil {
-				return fmt.Errorf("等待页面稳定失败: %v", err)
-			}
-		*/
 		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
@@ -275,8 +267,6 @@ func (rppc *rodBrowserPoolCrawler) performXClick(page *rod.Page, operation *para
 
 	for range operation.NumActions {
 
-		//page.MustActivate()
-
 		element, err := page.ElementX(operation.Selector)
 		if err != nil {
 			return fmt.Errorf("查找元素失败: %v", err)
@@ -286,13 +276,6 @@ func (rppc *rodBrowserPoolCrawler) performXClick(page *rod.Page, operation *para
 			return fmt.Errorf("点击失败: %v", err)
 		}
 
-		// 等待页面稳定
-		/*
-			err = page.WaitStable(500 * time.Millisecond)
-			if err != nil {
-				return fmt.Errorf("等待页面稳定失败: %v", err)
-			}
-		*/
 		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
@@ -345,12 +328,6 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 		}
 
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
-		/*
-			err = page.WaitStable(500 * time.Millisecond)
-			if err != nil {
-				return fmt.Errorf("等待页面稳定失败: %v", err)
-			}
-		*/
 		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
@@ -366,10 +343,6 @@ func (rppc *rodBrowserPoolCrawler) setNetListener(browser *rod.Browser, listener
 	router.MustAdd(listener.UrlPattern, func(hijack *rod.Hijack) {
 		hijack.MustLoadResponse()
 		body := hijack.Response.Body()
-		/*
-			log.Printf("监听到请求: %s, 响应大小: %d bytes",
-				hijack.Request.URL().String(), len(body))
-		*/
 		listener.RespChan <- []types.NetworkResponse{
 			{
 				URL:  hijack.Request.URL().String(),
@@ -377,5 +350,6 @@ func (rppc *rodBrowserPoolCrawler) setNetListener(browser *rod.Browser, listener
 			},
 		}
 	})
+	rppc.broswerRouters = append(rppc.broswerRouters, router)
 	return router
 }
