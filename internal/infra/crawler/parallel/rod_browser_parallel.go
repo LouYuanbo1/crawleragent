@@ -76,12 +76,15 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 		return browser, nil
 	}
 
+	broswerRouters := make([]*rod.HijackRouter, 0, browserPoolSize)
+
 	networkResponseCh := make([]chan []types.NetworkResponse, 0, browserPoolSize)
 
 	return &rodBrowserPoolCrawler{
 		browserPool:       BrowserPool,
 		createBrowser:     createBrowser,
 		controlURLCh:      controlURLCh,
+		broswerRouters:    broswerRouters,
 		networkResponseCh: networkResponseCh,
 	}, nil
 }
