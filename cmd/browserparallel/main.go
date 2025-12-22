@@ -126,7 +126,7 @@ func main() {
 		{
 			Url:           urlCnBlogs,
 			OperationType: param.OperationXClick,
-			Selector:      selectorCnBlogs,
+			ClickSelector: selectorCnBlogs,
 			//点击次数
 			NumActions: 5,
 			//标准 sleep 时间(秒)

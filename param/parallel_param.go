@@ -22,7 +22,7 @@ type UrlOperation struct {
 	NumActions           int                 `json:"num_actions"`
 	StandardSleepSeconds int                 `json:"standard_sleep_seconds"`
 	RandomDelaySeconds   int                 `json:"random_delay_seconds"`
-	Selector             string              `json:"selector"`
+	ClickSelector        string              `json:"click_selector"`
 	DataChan             chan types.DataChan `json:"data_chan"`
 	Listener             *ListenerConfig     `json:"listener"`
 }
@@ -32,7 +32,7 @@ func (uo *UrlOperation) IsValid() bool {
 	case OperationScroll:
 		return uo.Listener != nil
 	case OperationClick, OperationXClick:
-		return uo.Listener != nil && uo.Selector != ""
+		return uo.Listener != nil && uo.ClickSelector != ""
 	default:
 		return false
 	}
