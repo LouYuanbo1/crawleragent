@@ -245,7 +245,7 @@ func (rppc *rodBrowserPoolCrawler) performClick(page *rod.Page, operation *param
 	randomDelay := rand.Float64() * float64(operation.RandomDelaySeconds)
 	totalSleep := time.Duration((float64(operation.StandardSleepSeconds) + randomDelay) * float64(time.Second))
 
-	element, err := page.Element(operation.Selector)
+	element, err := page.Element(operation.ClickSelector)
 	if err != nil {
 		return fmt.Errorf("查找元素失败: %v", err)
 	}
@@ -270,7 +270,7 @@ func (rppc *rodBrowserPoolCrawler) performXClick(page *rod.Page, operation *para
 
 	for range operation.NumActions {
 
-		element, err := page.ElementX(operation.Selector)
+		element, err := page.ElementX(operation.ClickSelector)
 		if err != nil {
 			return fmt.Errorf("查找元素失败: %v", err)
 		}
