@@ -32,6 +32,8 @@ type Config struct {
 		DisableRendererBackgrounding bool `json:"disable-renderer-backgrounding"`
 		//(远程调试端口)
 		BasicRemoteDebuggingPort int `json:"basic_remote_debugging_port"`
+		//(开启CDP通信追踪)
+		Trace bool `json:"trace"`
 	} `json:"rod"`
 
 	Chromedp struct {

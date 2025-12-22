@@ -21,7 +21,8 @@
         "disable-background-timer-throttling": true,
         "disable-backgrounding-occluded-windows": true,
         "disable-renderer-backgrounding": true,
-        "basic_remote_debugging_port": 9222
+        "basic_remote_debugging_port": 9222,
+        "trace": true
     },
     "embedder": {
         "host": "http://localhost",

@@ -20,9 +20,10 @@ import (
 )
 
 type rodBrowserPoolCrawler struct {
-	browserPool   rod.Pool[rod.Browser]
-	createBrowser func() (*rod.Browser, error)
-	controlURLCh  chan string
+	browserPool       rod.Pool[rod.Browser]
+	createBrowser     func() (*rod.Browser, error)
+	controlURLCh      chan string
+	networkResponseCh []chan []types.NetworkResponse
 }
 
 func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (ParallelCrawler, error) {
@@ -65,28 +66,44 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 	createBrowser := func() (*rod.Browser, error) {
 		urlStr := <-controlURLCh // 不关闭通道，读取后再放回去
 		// 替换 MustConnect 为 Connect，返回 error 而非 panic
-		browser := rod.New().ControlURL(urlStr).
-			Trace(true) // 开启 CDP 通信追踪（日志会输出请求/响应）
+		browser := rod.
+			New().
+			ControlURL(urlStr).
+			Trace(cfg.Rod.Trace) // 开启 CDP 通信追踪（日志会输出请求/响应）
 		if err := browser.Connect(); err != nil {
 			return nil, fmt.Errorf("连接浏览器失败: %v", err)
 		}
 		return browser, nil
 	}
 
+	networkResponseCh := make([]chan []types.NetworkResponse, 0, browserPoolSize)
+
 	return &rodBrowserPoolCrawler{
-		browserPool:   BrowserPool,
-		createBrowser: createBrowser,
-		controlURLCh:  controlURLCh,
+		browserPool:       BrowserPool,
+		createBrowser:     createBrowser,
+		controlURLCh:      controlURLCh,
+		networkResponseCh: networkResponseCh,
 	}, nil
 }
 
 func (rppc *rodBrowserPoolCrawler) Close() {
+	log.Printf("关闭 %d 个浏览器连接和 %d 个监听管道", len(rppc.browserPool), len(rppc.networkResponseCh))
+	for _, ch := range rppc.networkResponseCh {
+		close(ch)
+	}
 	rppc.browserPool.Cleanup(func(b *rod.Browser) { b.MustClose() })
 }
 
 func (rppc *rodBrowserPoolCrawler) PerformAllUrlOperations(ctx context.Context, operations []*param.UrlOperation) error {
 	// 过滤无效操作
 	validOperations := rppc.operationsChecker(operations)
+
+	for _, op := range validOperations {
+		if op.Listener == nil {
+			continue
+		}
+		rppc.networkResponseCh = append(rppc.networkResponseCh, op.Listener.RespChan)
+	}
 
 	operationCh := make(chan *param.UrlOperation, len(validOperations))
 	for _, op := range validOperations {
@@ -165,10 +182,12 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 		page.MustClose()
 		log.Printf("将 browser %d 返回池，处理的URL模式: %s", workerID, operation.Listener.UrlPattern)
 		rppc.browserPool.Put(browser)
-		if operation.Listener != nil {
-			log.Printf("关闭 %s 监听管道", operation.Listener.UrlPattern)
-			close(operation.Listener.RespChan)
-		}
+		/*
+			if operation.Listener != nil {
+				log.Printf("关闭 %s 监听管道", operation.Listener.UrlPattern)
+				close(operation.Listener.RespChan)
+			}
+		*/
 	}()
 
 	err = rppc.navigateURL(page, workerID, operation.Url)
