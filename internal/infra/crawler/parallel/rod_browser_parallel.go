@@ -20,11 +20,11 @@ import (
 )
 
 type rodBrowserPoolCrawler struct {
-	browserPool       rod.Pool[rod.Browser]
-	createBrowser     func() (*rod.Browser, error)
-	controlURLCh      chan string
-	broswerRouters    []*rod.HijackRouter
-	networkResponseCh []chan *types.NetworkResponse
+	browserPool        rod.Pool[rod.Browser]
+	createBrowser      func() (*rod.Browser, error)
+	controlURLCh       chan string
+	broswerRouters     []*rod.HijackRouter
+	networkResponseChs []chan *types.NetworkResponse
 }
 
 func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (ParallelCrawler, error) {
@@ -79,14 +79,14 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 
 	broswerRouters := make([]*rod.HijackRouter, 0, browserPoolSize)
 
-	networkResponseCh := make([]chan *types.NetworkResponse, 0, browserPoolSize)
+	networkResponseChs := make([]chan *types.NetworkResponse, 0, browserPoolSize)
 
 	return &rodBrowserPoolCrawler{
-		browserPool:       BrowserPool,
-		createBrowser:     createBrowser,
-		controlURLCh:      controlURLCh,
-		broswerRouters:    broswerRouters,
-		networkResponseCh: networkResponseCh,
+		browserPool:        BrowserPool,
+		createBrowser:      createBrowser,
+		controlURLCh:       controlURLCh,
+		broswerRouters:     broswerRouters,
+		networkResponseChs: networkResponseChs,
 	}, nil
 }
 
@@ -97,8 +97,8 @@ func (rppc *rodBrowserPoolCrawler) Close() {
 		router.Stop()
 	}
 	// 关闭所有监听管道
-	log.Printf("关闭 %d 个监听管道", len(rppc.networkResponseCh))
-	for _, ch := range rppc.networkResponseCh {
+	log.Printf("关闭 %d 个监听管道", len(rppc.networkResponseChs))
+	for _, ch := range rppc.networkResponseChs {
 		close(ch)
 	}
 	log.Printf("关闭 %d 个浏览器连接", len(rppc.browserPool))
@@ -111,7 +111,7 @@ func (rppc *rodBrowserPoolCrawler) PerformAllUrlOperations(ctx context.Context, 
 
 	for _, op := range validOperations {
 		if op.ListenerConfig != nil {
-			rppc.networkResponseCh = append(rppc.networkResponseCh, op.ListenerConfig.ListenerCh)
+			rppc.networkResponseChs = append(rppc.networkResponseChs, op.ListenerConfig.ListenerCh)
 		}
 	}
 
