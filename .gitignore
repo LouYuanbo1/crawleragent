@@ -36,7 +36,6 @@ cmd/chromedp/user_data_dir/
 cmd/combine/user_data_dir/
 cmd/rod/user_data_dir/
 cmd/browserparallel/user_data_dir/
-cmd/pageparallel/user_data_dir/
 
 #App config file
 cmd/agent/appconfig/appconfig.json
@@ -44,4 +43,3 @@ cmd/chromedp/appconfig/appconfig.json
 cmd/colly/appconfig/appconfig.json
 cmd/rod/appconfig/appconfig.json
 cmd/browserparallel/appconfig/appconfig.json
-cmd/pageparallel/appconfig/appconfig.json

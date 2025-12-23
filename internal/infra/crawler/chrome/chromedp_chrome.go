@@ -173,7 +173,7 @@ func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedUR
 	fmt.Printf("成功获取响应体 (URL: %s, RequestID: %s, 大小: %d bytes)\n", cachedURL, requestID, len(body))
 	respChan <- []types.NetworkResponse{
 		{
-			URL:  cachedURL,
+			Url:  cachedURL,
 			Body: body,
 		},
 	}

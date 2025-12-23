@@ -1,10 +1,13 @@
 package types
 
 type NetworkResponse struct {
-	URL  string
-	Body []byte
+	Url        string
+	UrlPattern string
+	Body       []byte
 }
 
-type DataChan struct {
-	Data []byte
+type HtmlContent struct {
+	Url             string
+	ContentSelector string
+	Content         []string
 }

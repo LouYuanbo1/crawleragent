@@ -24,7 +24,7 @@ type rodBrowserPoolCrawler struct {
 	createBrowser     func() (*rod.Browser, error)
 	controlURLCh      chan string
 	broswerRouters    []*rod.HijackRouter
-	networkResponseCh []chan []types.NetworkResponse
+	networkResponseCh []chan *types.NetworkResponse
 }
 
 func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (ParallelCrawler, error) {
@@ -57,7 +57,7 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 			return nil, fmt.Errorf("启动浏览器失败: %v", err)
 		}
 
-		log.Printf("浏览器连接URL: %s", urlStr)
+		log.Printf("浏览器可以连接的URL: %s", urlStr)
 		controlURLCh <- urlStr
 	}
 	close(controlURLCh)
@@ -65,6 +65,7 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 	BrowserPool := rod.NewBrowserPool(browserPoolSize)
 
 	createBrowser := func() (*rod.Browser, error) {
+		// 从 controlURLCh 中获取 URL
 		urlStr := <-controlURLCh
 		browser := rod.
 			New().
@@ -78,7 +79,7 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 
 	broswerRouters := make([]*rod.HijackRouter, 0, browserPoolSize)
 
-	networkResponseCh := make([]chan []types.NetworkResponse, 0, browserPoolSize)
+	networkResponseCh := make([]chan *types.NetworkResponse, 0, browserPoolSize)
 
 	return &rodBrowserPoolCrawler{
 		browserPool:       BrowserPool,
@@ -109,10 +110,9 @@ func (rppc *rodBrowserPoolCrawler) PerformAllUrlOperations(ctx context.Context, 
 	validOperations := rppc.operationsChecker(operations)
 
 	for _, op := range validOperations {
-		if op.Listener == nil {
-			continue
+		if op.ListenerConfig != nil {
+			rppc.networkResponseCh = append(rppc.networkResponseCh, op.ListenerConfig.ListenerCh)
 		}
-		rppc.networkResponseCh = append(rppc.networkResponseCh, op.Listener.RespChan)
 	}
 
 	operationCh := make(chan *param.UrlOperation, len(validOperations))
@@ -174,9 +174,8 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 		errCh <- fmt.Errorf("获取浏览器失败: %v", err)
 		return
 	}
-
 	// 设置所有网络监听器
-	router := rppc.setNetListener(browser, operation.Listener)
+	router := rppc.setNetListener(browser, operation.ListenerConfig)
 	go func() {
 		router.Run()
 		log.Printf("Worker %d 路由器停止运行", workerID)
@@ -190,7 +189,7 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 	// 确保页面放回池中
 	defer func() {
 		page.MustClose()
-		log.Printf("将 browser %d 返回池，处理的URL模式: %s", workerID, operation.Listener.UrlPattern)
+		log.Printf("将 browser %d 返回池，处理的URL模式: %s", workerID, operation.ListenerConfig.UrlPatterns)
 		rppc.browserPool.Put(browser)
 	}()
 
@@ -256,7 +255,7 @@ func (rppc *rodBrowserPoolCrawler) performClick(page *rod.Page, operation *param
 			return fmt.Errorf("点击失败: %v", err)
 		}
 
-		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
+		page.WaitRequestIdle(time.Second, operation.ListenerConfig.UrlPatterns, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
 	}
@@ -279,7 +278,7 @@ func (rppc *rodBrowserPoolCrawler) performXClick(page *rod.Page, operation *para
 			return fmt.Errorf("点击失败: %v", err)
 		}
 
-		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
+		page.WaitRequestIdle(time.Second, operation.ListenerConfig.UrlPatterns, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
 	}
@@ -331,7 +330,8 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 		}
 
 		fmt.Printf("第 %d 次滚动完成，目标位置: %f\n", i+1, currentScroll)
-		page.WaitRequestIdle(time.Second, []string{operation.Listener.UrlPattern}, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
+
+		page.WaitRequestIdle(time.Second, operation.ListenerConfig.UrlPatterns, nil, []proto.NetworkResourceType{proto.NetworkResourceTypeDocument})
 
 		time.Sleep(totalSleep)
 
@@ -343,16 +343,18 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 
 func (rppc *rodBrowserPoolCrawler) setNetListener(browser *rod.Browser, listener *param.ListenerConfig) *rod.HijackRouter {
 	router := browser.HijackRequests()
-	router.MustAdd(listener.UrlPattern, func(hijack *rod.Hijack) {
-		hijack.MustLoadResponse()
-		body := hijack.Response.Body()
-		listener.RespChan <- []types.NetworkResponse{
-			{
-				URL:  hijack.Request.URL().String(),
-				Body: []byte(body),
-			},
-		}
-	})
+	for _, urlPattern := range listener.UrlPatterns {
+		router.MustAdd(urlPattern, func(hijack *rod.Hijack) {
+			hijack.MustLoadResponse()
+			body := hijack.Response.Body()
+			listener.ListenerCh <- &types.NetworkResponse{
+				Url:        hijack.Request.URL().String(),
+				UrlPattern: urlPattern,
+				Body:       []byte(body),
+			}
+		})
+	}
+
 	rppc.broswerRouters = append(rppc.broswerRouters, router)
 	return router
 }

@@ -91,7 +91,7 @@ func (cs *rodService[C, D]) SetNetworkListenerWithIndexDocs(ctx context.Context,
 					crawlables, err := toCrawlable(resp.Body)
 					if err != nil {
 						log.Printf("处理响应体失败 (URL: %s): %v",
-							resp.URL, err)
+							resp.Url, err)
 						continue
 					}
 					if len(crawlables) == 0 {
@@ -131,7 +131,7 @@ func (cs *rodService[C, D]) SetNetworkListener(ctx context.Context, urlPattern s
 					return
 				}
 				for _, resp := range resps {
-					log.Printf("收到响应 (URL: %s)", resp.URL)
+					log.Printf("收到响应 (URL: %s)", resp.Url)
 				}
 			case <-ctx.Done():
 				log.Printf("取消监听: %s", urlPattern)

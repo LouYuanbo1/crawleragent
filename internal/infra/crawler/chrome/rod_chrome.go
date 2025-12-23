@@ -161,7 +161,7 @@ func (rc *rodCrawler) SetNetworkListener(urlPattern string, respChan chan []type
 		//fmt.Printf("URL: %s\nResponse Body: %s\n", hijack.Request.URL(), body)
 		respChan <- []types.NetworkResponse{
 			{
-				URL:  hijack.Request.URL().String(),
+				Url:  hijack.Request.URL().String(),
 				Body: []byte(body),
 			},
 		}
