@@ -154,16 +154,14 @@ func (rc *rodCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, random
 	return nil
 }
 
-func (rc *rodCrawler) SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse) {
+func (rc *rodCrawler) SetNetworkListener(urlPattern string, respChan chan *types.NetworkResponse) {
 	rc.router.MustAdd(urlPattern, func(hijack *rod.Hijack) {
 		hijack.MustLoadResponse()
 		body := hijack.Response.Body()
 		//fmt.Printf("URL: %s\nResponse Body: %s\n", hijack.Request.URL(), body)
-		respChan <- []types.NetworkResponse{
-			{
-				Url:  hijack.Request.URL().String(),
-				Body: []byte(body),
-			},
+		respChan <- &types.NetworkResponse{
+			Url:  hijack.Request.URL().String(),
+			Body: []byte(body),
 		}
 	})
 	fmt.Printf("已设置网络监听器，监听URL模式: %s\n", urlPattern)

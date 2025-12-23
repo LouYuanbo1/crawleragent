@@ -18,6 +18,6 @@ type ChromeCrawler interface {
 	InitAndNavigate(url string) error
 	PerformClick(selector string, clickCount, standardSleepSeconds, randomDelaySeconds int) error
 	PerformScrolling(scrollTimes, standardSleepSeconds, randomDelaySeconds int) error
-	SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse)
+	SetNetworkListener(urlPattern string, respChan chan *types.NetworkResponse)
 	Close()
 }

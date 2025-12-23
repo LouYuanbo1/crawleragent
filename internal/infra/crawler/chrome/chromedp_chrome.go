@@ -116,7 +116,7 @@ func (cc *chromedpCrawler) PerformScrolling(scrollTimes, standardSleepSeconds, r
 	return nil
 }
 
-func (cc *chromedpCrawler) SetNetworkListener(urlPattern string, respChan chan []types.NetworkResponse) {
+func (cc *chromedpCrawler) SetNetworkListener(urlPattern string, respChan chan *types.NetworkResponse) {
 	chromedp.ListenTarget(cc.pageCtx, func(ev any) {
 		switch ev := ev.(type) {
 		case *network.EventResponseReceived:
@@ -159,7 +159,7 @@ func (cc *chromedpCrawler) PerformClick(selector string, clickCount, standardSle
 	return nil
 }
 
-func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedURL string, respChan chan []types.NetworkResponse) {
+func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedURL string, respChan chan *types.NetworkResponse) {
 	c := chromedp.FromContext(cc.pageCtx)
 	responseBodyParams := network.GetResponseBody(requestID)
 	ctx := cdp.WithExecutor(cc.pageCtx, c.Target)
@@ -171,10 +171,8 @@ func (cc *chromedpCrawler) getResponseBody(requestID network.RequestID, cachedUR
 	}
 
 	fmt.Printf("成功获取响应体 (URL: %s, RequestID: %s, 大小: %d bytes)\n", cachedURL, requestID, len(body))
-	respChan <- []types.NetworkResponse{
-		{
-			Url:  cachedURL,
-			Body: body,
-		},
+	respChan <- &types.NetworkResponse{
+		Url:  cachedURL,
+		Body: body,
 	}
 }
