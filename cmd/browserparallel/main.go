@@ -86,18 +86,18 @@ func main() {
 	//这里的crawler.InitCrawlerService函数用于初始化爬虫服务,将滚动爬虫、Elasticsearch客户端和Embedding模型组合起来
 	serviceParallel := service.InitRodParallelService(parallelCrawler, esJobClient, embedder)
 
-	respChanBoss := make(chan []types.NetworkResponse, 100)
-	respChanCnblogs := make(chan []types.NetworkResponse, 100)
-	//respChanBili := make(chan []types.NetworkResponse, 100)
+	respChanBoss := make(chan *types.NetworkResponse, 100)
+	respChanCnblogs := make(chan *types.NetworkResponse, 100)
+	//respChanBili := make(chan *types.NetworkResponse, 100)
 
 	//创建监听器
 	listenerBoss := &param.ListenerConfig{
-		UrlPattern: urlPatternBoss,
-		RespChan:   respChanBoss,
+		UrlPatterns: []string{urlPatternBoss},
+		ListenerCh:  respChanBoss,
 	}
 	listenerCnblogs := &param.ListenerConfig{
-		UrlPattern: urlPatternCnBlogs,
-		RespChan:   respChanCnblogs,
+		UrlPatterns: []string{urlPatternCnBlogs},
+		ListenerCh:  respChanCnblogs,
 	}
 
 	/*
@@ -121,7 +121,7 @@ func main() {
 			//这里设置为2秒,表示每次滚动爬取后,随机等待时间为0-2秒
 			RandomDelaySeconds: 1,
 			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
-			Listener: listenerBoss,
+			ListenerConfig: listenerBoss,
 		},
 		{
 			Url:           urlCnBlogs,
@@ -135,7 +135,7 @@ func main() {
 			RandomDelaySeconds: 1,
 			//实际等待实际为: StandardSleepSeconds + RandomDelaySeconds
 			//监听的url
-			Listener: listenerCnblogs,
+			ListenerConfig: listenerCnblogs,
 		},
 		/*
 			{

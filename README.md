@@ -28,8 +28,7 @@ crawleragent/
 │   ├── chromedp/        # Chromedp爬虫入口
 │   ├── colly/           # Colly爬虫入口
 |   ├── rod/             # Rod爬虫入口
-|   ├── pageparallel/    # Rod页面并行爬虫入口(同一个浏览器中多个页面并行爬取,效果不佳,当页面进入后台时可能不会加载网络数据)
-|   └── browserparallel/ # Rod浏览器并行爬虫入口（多个浏览器并行爬取,多个浏览器隔离,效果好）
+|   └── browserparallel/ # Rod浏览器并行爬虫入口
 ├── internal/            # 内部包
 │   ├── config/          # 配置管理
 │   ├── domain/          # 领域模型
