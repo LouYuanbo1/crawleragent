@@ -102,6 +102,9 @@ func (rppc *rodBrowserPoolCrawler) Close() {
 }
 
 func (rppc *rodBrowserPoolCrawler) PerformAllUrlOperations(ctx context.Context, operations []*param.UrlOperation) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// 过滤无效操作
 	validOperations := rppc.operationsChecker(operations)
 
@@ -133,7 +136,7 @@ func (rppc *rodBrowserPoolCrawler) PerformAllUrlOperations(ctx context.Context, 
 					if !ok { // 通道关闭则退出
 						return
 					}
-					rppc.processUrlOperation(workerID, errCh, op)
+					rppc.processUrlOperation(ctx, workerID, errCh, op)
 				}
 			}
 		}(ctx, i)
@@ -164,14 +167,14 @@ func (rppc *rodBrowserPoolCrawler) operationsChecker(operations []*param.UrlOper
 	return validOperations
 }
 
-func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<- error, operation *param.UrlOperation) {
+func (rppc *rodBrowserPoolCrawler) processUrlOperation(ctx context.Context, workerID int, errCh chan<- error, operation *param.UrlOperation) {
 	browser, err := rppc.browserPool.Get(rppc.createBrowser)
 	if err != nil {
 		errCh <- fmt.Errorf("获取浏览器失败: %v", err)
 		return
 	}
 	// 设置所有网络监听器
-	router := rppc.setNetListener(browser, operation.ListenerConfig)
+	router := rppc.setNetListener(ctx, browser, operation.ListenerConfig)
 	go func() {
 		router.Run()
 		log.Printf("Worker %d 路由器停止运行", workerID)
@@ -340,10 +343,15 @@ func (rppc *rodBrowserPoolCrawler) performScrolling(page *rod.Page, operation *p
 	return nil
 }
 
-func (rppc *rodBrowserPoolCrawler) setNetListener(browser *rod.Browser, listener *param.ListenerConfig) *rod.HijackRouter {
+func (rppc *rodBrowserPoolCrawler) setNetListener(ctx context.Context, browser *rod.Browser, listener *param.ListenerConfig) *rod.HijackRouter {
 	router := browser.HijackRequests()
 	for _, urlPattern := range listener.UrlPatterns {
 		router.MustAdd(urlPattern, func(hijack *rod.Hijack) {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			hijack.MustLoadResponse()
 			body := hijack.Response.Body()
 			listener.ListenerCh <- &types.NetworkResponse{
