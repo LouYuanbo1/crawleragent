@@ -75,7 +75,7 @@ func (cs *chromedpService[C, D]) ClickStrategy(ctx context.Context, param *param
 
 func (cs *chromedpService[C, D]) SetNetworkListenerWithIndexDocs(ctx context.Context, urlPattern string, RespChanSize int, toCrawlable func(body []byte) ([]C, error)) {
 	ctx, cancel := context.WithCancel(ctx)
-	RespChan := make(chan []types.NetworkResponse, RespChanSize)
+	RespChan := make(chan *types.NetworkResponse, RespChanSize)
 	cs.chromeCrawler.SetNetworkListener(urlPattern, RespChan)
 	go func() {
 		defer func() {
@@ -85,30 +85,28 @@ func (cs *chromedpService[C, D]) SetNetworkListenerWithIndexDocs(ctx context.Con
 		}()
 		for {
 			select {
-			case resps, ok := <-RespChan:
+			case resp, ok := <-RespChan:
 				if !ok {
 					log.Printf("响应通道已关闭: %s", urlPattern)
 					return
 				}
-				for _, resp := range resps {
-					log.Printf("收到响应 (URL: %s)", resp.Url)
-					crawlables, err := toCrawlable(resp.Body)
-					if err != nil {
-						log.Printf("处理响应体失败 (URL: %s): %v",
-							resp.Url, err)
-						continue
-					}
-					if len(crawlables) == 0 {
-						continue
-					}
-					docs := make([]D, 0, len(crawlables))
-					for _, crawlable := range crawlables {
-						doc := crawlable.ToDocument()
-						docs = append(docs, doc)
-					}
-					cs.embeddingDocs(docs)
-					cs.indexDocs(docs)
+				log.Printf("收到响应 (URL: %s)", resp.Url)
+				crawlables, err := toCrawlable(resp.Body)
+				if err != nil {
+					log.Printf("处理响应体失败 (URL: %s): %v",
+						resp.Url, err)
+					continue
 				}
+				if len(crawlables) == 0 {
+					continue
+				}
+				docs := make([]D, 0, len(crawlables))
+				for _, crawlable := range crawlables {
+					doc := crawlable.ToDocument()
+					docs = append(docs, doc)
+				}
+				cs.embeddingDocs(docs)
+				cs.indexDocs(docs)
 			case <-ctx.Done():
 				log.Printf("取消监听: %s", urlPattern)
 				return
@@ -119,7 +117,7 @@ func (cs *chromedpService[C, D]) SetNetworkListenerWithIndexDocs(ctx context.Con
 
 func (cs *chromedpService[C, D]) SetNetworkListener(ctx context.Context, urlPattern string, RespChanSize int) {
 	ctx, cancel := context.WithCancel(ctx)
-	RespChan := make(chan []types.NetworkResponse, RespChanSize)
+	RespChan := make(chan *types.NetworkResponse, RespChanSize)
 	cs.chromeCrawler.SetNetworkListener(urlPattern, RespChan)
 	go func() {
 		defer func() {
@@ -129,14 +127,13 @@ func (cs *chromedpService[C, D]) SetNetworkListener(ctx context.Context, urlPatt
 		}()
 		for {
 			select {
-			case resps, ok := <-RespChan:
+			case resp, ok := <-RespChan:
 				if !ok {
 					log.Printf("响应通道已关闭: %s", urlPattern)
 					return
 				}
-				for _, resp := range resps {
-					log.Printf("收到响应 (URL: %s)", resp.Url)
-				}
+
+				log.Printf("收到响应 (URL: %s)", resp.Url)
 			case <-ctx.Done():
 				log.Printf("取消监听: %s", urlPattern)
 				return
