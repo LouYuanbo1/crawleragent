@@ -215,4 +215,9 @@ func main() {
 	//打印索引中的文档数量
 	fmt.Printf("索引中的文档数量: %d\n", count)
 
+	err = esJobClient.ToExcel(ctx, "C:/Users/15325/Desktop/boss_jobs.xlsx", []string{"salaryDesc"}, 1000)
+	if err != nil {
+		log.Fatalf("导出索引文档到Excel失败: %v", err)
+	}
+
 }

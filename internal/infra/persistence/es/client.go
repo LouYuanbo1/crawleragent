@@ -28,4 +28,5 @@ type TypedEsClient[D model.Document] interface {
 	UpdateDoc(ctx context.Context, doc D) error
 	DeleteDoc(ctx context.Context, id string) error
 	BulkDeleteDocs(ctx context.Context, ids []string) error
+	ToExcel(ctx context.Context, filename string, sortFields []string, size int) error
 }
