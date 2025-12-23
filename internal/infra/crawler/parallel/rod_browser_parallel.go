@@ -23,7 +23,6 @@ type rodBrowserPoolCrawler struct {
 	browserPool        rod.Pool[rod.Browser]
 	createBrowser      func() (*rod.Browser, error)
 	controlURLCh       chan string
-	broswerRouters     []*rod.HijackRouter
 	networkResponseChs []chan *types.NetworkResponse
 }
 
@@ -77,25 +76,22 @@ func InitRodBrowserPoolCrawler(cfg *config.Config, browserPoolSize int) (Paralle
 		return browser, nil
 	}
 
-	broswerRouters := make([]*rod.HijackRouter, 0, browserPoolSize)
-
 	networkResponseChs := make([]chan *types.NetworkResponse, 0, browserPoolSize)
 
 	return &rodBrowserPoolCrawler{
 		browserPool:        BrowserPool,
 		createBrowser:      createBrowser,
 		controlURLCh:       controlURLCh,
-		broswerRouters:     broswerRouters,
 		networkResponseChs: networkResponseChs,
 	}, nil
 }
 
 func (rppc *rodBrowserPoolCrawler) Close() {
-	// 关闭所有路由器
-	log.Printf("关闭 %d 个路由器", len(rppc.broswerRouters))
-	for _, router := range rppc.broswerRouters {
-		router.Stop()
-	}
+	log.Printf("开始关闭，停止接收新请求...")
+
+	// 2. 等待一段时间让正在进行的请求完成
+	time.Sleep(3 * time.Second) // 可以根据实际情况调整
+
 	// 关闭所有监听管道
 	log.Printf("关闭 %d 个监听管道", len(rppc.networkResponseChs))
 	for _, ch := range rppc.networkResponseChs {
@@ -188,6 +184,9 @@ func (rppc *rodBrowserPoolCrawler) processUrlOperation(workerID int, errCh chan<
 	}
 	// 确保页面放回池中
 	defer func() {
+		log.Printf("Worker %d 路由器停止运行", workerID)
+		router.Stop()
+		log.Printf("Worker %d 页面关闭", workerID)
 		page.MustClose()
 		log.Printf("将 browser %d 返回池，处理的URL模式: %s", workerID, operation.ListenerConfig.UrlPatterns)
 		rppc.browserPool.Put(browser)
@@ -355,6 +354,5 @@ func (rppc *rodBrowserPoolCrawler) setNetListener(browser *rod.Browser, listener
 		})
 	}
 
-	rppc.broswerRouters = append(rppc.broswerRouters, router)
 	return router
 }
