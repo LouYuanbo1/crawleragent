@@ -1,5 +1,7 @@
 # crawleragent
 一个结合了爬虫和AI智能体的项目，通过爬取网站扩充本地知识库并回答问题。
+现在拥有v2版本，简化代码，仅保留核心技术栈，增加测试版AI爬虫。
+链接:https://github.com/LouYuanbo1/crawleragent-v2
 
 ## 项目简介
 CrawlerAgent是一个爬虫与AI智能体结合的工具，它能够：
